@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>MOAT — will the next AI model take your job?</title>
+<meta name="description" content="Audit your working week, score every task by AI-replaceability, and find your career half-life — the date when most of your week becomes automatable.">
+<style>
+/*{{STYLES}}*/
+</style>
+</head>
+<body>
+<header>
+  <h1>🏰 MOAT</h1>
+  <p class="tagline">The next model will do half of all cognitive work.<br>
+  This audits which half of <em>your</em> week it takes — and when.</p>
+  <p class="muted">100% local: your data never leaves this page. No signup, no server, no telemetry.</p>
+  <div class="toolbar">
+    <button data-action="sample">▶ load a sample week</button>
+    <button data-action="export">export data</button>
+    <button data-action="import">import data</button>
+    <button data-action="reset" class="danger">erase</button>
+    <input type="file" id="import-file" accept=".json" hidden>
+  </div>
+</header>
+<main>
+  <section>
+    <h2>1 · Your week</h2>
+    <p class="muted">Add every task that fills your working week, then answer 9 sliders each.
+    Calibration: most people overrate their trust &amp; taste by 1–2 points — if nobody has ever
+    paid extra specifically for <em>yours</em>, subtract one.</p>
+    <div id="task-form" class="card"></div>
+    <div id="task-list"></div>
+  </section>
+  <section id="results"></section>
+  <section>
+    <h2>3 · Moat assets — capital that survives any model release</h2>
+    <div id="assets-sliders" class="card"></div>
+    <div id="assets-advice"></div>
+  </section>
+</main>
+<footer>
+  <p class="muted">MOAT scores tasks as <code>risk = 100 × automatable-shape × (1 − moat-strength)</code>,
+  then projects forward assuming the frontier closes ~half of each task's automation gap every 5 years
+  while each moat decays at its own rate (accountability slowest, embodiment fastest).
+  Every constant is an explicit, arguable assumption — argue with it, then move your hours.</p>
+</footer>
+<script type="module">
+/*{{MODEL}}*/
+/*{{RENDER}}*/
+/*{{UI}}*/
+</script>
+</body>
+</html>

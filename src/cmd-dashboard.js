@@ -4,7 +4,8 @@ import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { execFile } from 'node:child_process';
 import { taskRisk, classify } from './scoring-model.js';
-import { ASSET_CLASSES } from './cmd-assets.js';
+import { survivalHalfLife, halfLifeDate } from './horizon-model.js';
+import { ASSET_CLASSES } from './strategy-playbook.js';
 import { load, latestAudit, DATA_DIR } from './storage.js';
 
 const CLS_COLOR = { 'delegate': '#f87171', 'convert': '#fbbf24', 'double-down': '#4ade80' };
@@ -67,6 +68,11 @@ export function runDashboard() {
   <h1>🏰 MOAT — anti-obsolescence dashboard <span class="dim">${audit.date}</span></h1>
   <div class="gauge">${s}<span style="font-size:24px;color:#6b7280">/100 survival</span></div>
   <p class="dim">100 = your week is untouchable by the next model · 0 = fully automatable</p>
+  <p>☠ career half-life: <b>${(() => {
+    const hl = survivalHalfLife(audit.tasks);
+    if (hl === 0) return 'already past — majority of your week is automatable today';
+    return hl == null ? 'beyond the 15-year horizon' : `~${halfLifeDate(audit.tasks)} (${hl.toFixed(1)}y)`;
+  })()}</b> <span class="dim">— run \`moat horizon\` for the projection</span></p>
   <h2>Task risk (AI-replaceability)</h2>
   <p class="legend"><span style="color:#f87171">■ delegate to AI</span><span style="color:#fbbf24">■ convert position</span><span style="color:#4ade80">■ double down</span></p>
   ${taskRows(audit.tasks)}

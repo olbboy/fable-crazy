@@ -6,21 +6,8 @@ import {
 } from './scoring-model.js';
 import { load, latestAudit } from './storage.js';
 import { printAuditSummary } from './cmd-audit.js';
+import { CONVERSION_PLAYBOOK } from './strategy-playbook.js';
 import { bold, dim, red, yellow, green, cyan } from './prompts.js';
-
-// What "convert" means depending on which moat is (or could be) strongest.
-const CONVERSION_PLAYBOOK = {
-  accountability:
-    'Become the signer. Let AI produce the work; you own the outcome, carry the liability, and charge for the guarantee — not the labor.',
-  trust:
-    'Become the face. Clients should buy "you, amplified by AI" — keep every relationship touchpoint human, automate everything behind it.',
-  embodied:
-    'Anchor it in the physical. Pair the digital part (automate it) with on-site presence, hardware, or hands-on delivery that no API can ship.',
-  taste:
-    'Become the curator. Generate 20 options with AI, but be the person whose selection people pay for. Publish your taste so it becomes a brand.',
-  access:
-    'Become the gateway. Your privileged context, data, or seat at the table is the input AI cannot get — sell the access, automate the processing.',
-};
 
 export function runPlan() {
   const data = load();

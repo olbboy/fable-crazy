@@ -3,9 +3,11 @@
 import { runAudit, printAuditSummary } from '../src/cmd-audit.js';
 import { runAssets, printAssets } from '../src/cmd-assets.js';
 import { runPlan } from '../src/cmd-plan.js';
+import { runHorizon } from '../src/cmd-horizon.js';
 import { runDashboard } from '../src/cmd-dashboard.js';
 import { runCoach } from '../src/cmd-coach.js';
-import { runDemo } from '../src/demo-data.js';
+import { runWeb } from '../src/cmd-web.js';
+import { runDemo } from '../src/cmd-demo.js';
 import { load, latestAudit } from '../src/storage.js';
 import { bold, dim } from '../src/prompts.js';
 
@@ -15,9 +17,11 @@ ${dim('scores your working week by AI-replaceability, then tells you where to mo
 
   ${bold('moat audit')}      interview: score each weekly task on 9 dimensions
   ${bold('moat plan')}       reallocation plan: delegate / convert / double down
+  ${bold('moat horizon')}    capability-creep projection + your career half-life date
   ${bold('moat assets')}     inventory your durable career capital (6 classes)
   ${bold('moat dashboard')}  self-contained HTML dashboard with trend
   ${bold('moat coach')}      pipe your data to \`claude\` for a brutal strategy session
+  ${bold('moat web')}        build the single-file web app (share it with anyone)
   ${bold('moat status')}     latest survival score + assets at a glance
   ${bold('moat demo')}       seed sample data to explore instantly
 `;
@@ -33,9 +37,11 @@ function runStatus() {
 const commands = {
   audit: runAudit,
   plan: runPlan,
+  horizon: runHorizon,
   assets: runAssets,
   dashboard: runDashboard,
   coach: runCoach,
+  web: runWeb,
   status: runStatus,
   demo: runDemo,
 };

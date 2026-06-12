@@ -1,0 +1,611 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>MOAT — will the next AI model take your job?</title>
+<meta name="description" content="Audit your working week, score every task by AI-replaceability, and find your career half-life — the date when most of your week becomes automatable.">
+<style>
+:root {
+  --bg: #0b0f17; --card: #111827; --line: #1f2937; --text: #e5e7eb;
+  --muted: #6b7280; --red: #f87171; --yellow: #fbbf24; --green: #4ade80; --blue: #60a5fa;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--text); font: 15px/1.55 -apple-system, system-ui, sans-serif; margin: 0; }
+header, main, footer { max-width: 780px; margin: 0 auto; padding: 0 20px; }
+header { padding-top: 44px; }
+h1 { font-size: 30px; margin: 0 0 6px; }
+h2 { font-size: 16px; color: #9ca3af; text-transform: uppercase; letter-spacing: .07em; margin: 40px 0 10px; }
+h3 { font-size: 15px; margin: 22px 0 6px; }
+.tagline { font-size: 17px; margin: 0 0 6px; }
+.muted { color: var(--muted); font-size: 13px; }
+em { color: var(--text); font-style: normal; border-bottom: 1px dotted var(--muted); }
+code { background: var(--card); padding: 1px 5px; border-radius: 4px; font-size: 12.5px; }
+.toolbar { display: flex; gap: 8px; flex-wrap: wrap; margin: 14px 0 4px; }
+button { background: var(--card); color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 7px 14px; font-size: 13.5px; cursor: pointer; }
+button:hover { border-color: var(--muted); }
+button.primary { background: #1d4ed8; border-color: #1d4ed8; font-weight: 600; }
+button.danger { color: var(--red); }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 16px; margin: 12px 0; }
+.field-row { display: flex; gap: 10px; margin-bottom: 12px; }
+input[type=text], input[type=number] { background: var(--bg); color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; font-size: 14px; }
+input[type=text] { flex: 1; }
+input[type=number] { width: 90px; }
+.dim-group { color: var(--blue); font-size: 12px; text-transform: uppercase; letter-spacing: .08em; margin: 14px 0 4px; }
+.dim-row { display: grid; grid-template-columns: 1fr 140px 20px; gap: 12px; align-items: center; padding: 7px 0; border-top: 1px solid var(--line); }
+.dim-row .q { font-size: 13.5px; }
+.dim-row small { color: var(--muted); display: block; margin-top: 2px; }
+.dim-row output { text-align: right; font-variant-numeric: tabular-nums; }
+input[type=range] { width: 100%; accent-color: var(--blue); }
+.task-card { display: flex; align-items: center; gap: 12px; background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; margin: 8px 0; }
+.task-card .name { flex: 1; }
+.chip { font-weight: 700; font-variant-numeric: tabular-nums; min-width: 56px; text-align: right; }
+.del { background: none; border: none; color: var(--muted); font-size: 16px; cursor: pointer; padding: 2px 6px; }
+.del:hover { color: var(--red); }
+.gauge { font-size: 58px; font-weight: 800; line-height: 1.1; }
+.gauge small { font-size: 22px; color: var(--muted); font-weight: 600; }
+.banner { border: 1px solid var(--line); border-left: 4px solid var(--yellow); border-radius: 10px; padding: 12px 16px; margin: 16px 0; background: var(--card); }
+.banner b { font-size: 17px; }
+.bar-row { display: flex; align-items: center; gap: 12px; margin: 7px 0; }
+.bar-row .name { flex: 0 0 290px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 13.5px; }
+.track { flex: 1; height: 10px; background: var(--line); border-radius: 5px; overflow: hidden; }
+.fill { display: block; height: 100%; border-radius: 5px; }
+.val { flex: 0 0 34px; text-align: right; font-variant-numeric: tabular-nums; font-size: 13.5px; }
+.bucket { margin: 18px 0; }
+.bucket p.note { color: var(--muted); font-size: 13px; margin: 2px 0 8px; }
+.bucket li { margin: 4px 0; font-size: 14px; }
+.bucket .play { color: var(--blue); font-size: 13px; }
+.share { width: 100%; background: var(--bg); color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 10px; font: 13px/1.5 ui-monospace, monospace; min-height: 96px; }
+footer { padding: 36px 20px 60px; border-top: 1px solid var(--line); margin-top: 48px; }
+@media (max-width: 640px) { .bar-row .name { flex-basis: 150px; } .dim-row { grid-template-columns: 1fr 100px 18px; } }
+
+</style>
+</head>
+<body>
+<header>
+  <h1>🏰 MOAT</h1>
+  <p class="tagline">The next model will do half of all cognitive work.<br>
+  This audits which half of <em>your</em> week it takes — and when.</p>
+  <p class="muted">100% local: your data never leaves this page. No signup, no server, no telemetry.</p>
+  <div class="toolbar">
+    <button data-action="sample">▶ load a sample week</button>
+    <button data-action="export">export data</button>
+    <button data-action="import">import data</button>
+    <button data-action="reset" class="danger">erase</button>
+    <input type="file" id="import-file" accept=".json" hidden>
+  </div>
+</header>
+<main>
+  <section>
+    <h2>1 · Your week</h2>
+    <p class="muted">Add every task that fills your working week, then answer 9 sliders each.
+    Calibration: most people overrate their trust &amp; taste by 1–2 points — if nobody has ever
+    paid extra specifically for <em>yours</em>, subtract one.</p>
+    <div id="task-form" class="card"></div>
+    <div id="task-list"></div>
+  </section>
+  <section id="results"></section>
+  <section>
+    <h2>3 · Moat assets — capital that survives any model release</h2>
+    <div id="assets-sliders" class="card"></div>
+    <div id="assets-advice"></div>
+  </section>
+</main>
+<footer>
+  <p class="muted">MOAT scores tasks as <code>risk = 100 × automatable-shape × (1 − moat-strength)</code>,
+  then projects forward assuming the frontier closes ~half of each task's automation gap every 5 years
+  while each moat decays at its own rate (accountability slowest, embodiment fastest).
+  Every constant is an explicit, arguable assumption — argue with it, then move your hours.</p>
+</footer>
+<script type="module">
+// The core thesis: post-AGI, the bottleneck for remaining human work is NOT
+// intelligence. A task survives automation when it is hard to specify, hard to
+// verify, physically embodied, or gated by accountability/trust/access that
+// machines cannot legally or socially carry.
+
+// Automation accelerators — the higher, the faster a frontier model eats this task.
+export const ACCELERATORS = [
+  {
+    key: 'codified',
+    label: 'Codifiability',
+    question: 'Could a complete written spec let a stranger do this task?',
+    hint: '0 = calming a furious client mid-crisis · 4 = expense reports: an intern with a checklist nails it',
+  },
+  {
+    key: 'digital',
+    label: 'Digital I/O',
+    question: 'Does this task happen entirely inside a computer?',
+    hint: '0 = surgery, site visits · 4 = code, docs, spreadsheets',
+  },
+  {
+    key: 'verifiable',
+    label: 'Cheap verification',
+    question: 'Can the output be checked right/wrong cheaply or automatically?',
+    hint: '0 = "is this strategy right?" — experts disagree · 4 = tests pass, numbers reconcile',
+  },
+  {
+    key: 'repetitive',
+    label: 'Repetition',
+    question: 'How similar is each instance of this task to the previous one?',
+    hint: '0 = every instance is a new puzzle · 4 = same motion every day',
+  },
+];
+
+// Human moats — the higher, the longer this task stays human.
+// Weights reflect durability: liability and trust decay slowest.
+export const MOATS = [
+  {
+    key: 'accountability',
+    label: 'Accountability',
+    weight: 1.25,
+    question: 'Must a human legally/professionally own the outcome (signature, license, liability)?',
+    hint: '0 = nobody signs anything · 4 = engineer-of-record, auditor, surgeon',
+  },
+  {
+    key: 'trust',
+    label: 'Personal trust',
+    weight: 1.25,
+    question: 'Does it depend on people trusting YOU specifically, built over years?',
+    hint: '0 = clients would switch vendors for 5% off · 4 = they follow YOU across companies',
+  },
+  {
+    key: 'embodied',
+    label: 'Embodiment',
+    weight: 1.0,
+    question: 'Does it require physical presence, hands, or being in the room?',
+    hint: '0 = doable from a beach forever · 4 = hands, rooms, hard hats',
+  },
+  {
+    key: 'taste',
+    label: 'Taste under ambiguity',
+    weight: 1.0,
+    question: 'Is "good" contested here — judgment calls with no objective answer?',
+    hint: '0 = one correct answer exists · 4 = your selection IS the product',
+  },
+  {
+    key: 'access',
+    label: 'Privileged access',
+    weight: 1.1,
+    question: 'Does it need privileged access — people, capital, confidential context, an institutional seat?',
+    hint: '0 = anyone with a laptop can do it · 4 = boardroom seats, confidential context, capital',
+  },
+];
+
+export const ALL_DIMENSIONS = [...ACCELERATORS, ...MOATS];
+
+const mean = (xs) => xs.reduce((a, b) => a + b, 0) / xs.length;
+
+// 0..1, how exposed the task shape is to automation
+export function accelScore(scores) {
+  return mean(ACCELERATORS.map((d) => scores[d.key] ?? 0)) / 4;
+}
+
+// 0..1, weighted strength of human moats around the task
+export function moatScore(scores) {
+  const totalW = MOATS.reduce((a, d) => a + d.weight, 0);
+  const sum = MOATS.reduce((a, d) => a + (scores[d.key] ?? 0) * d.weight, 0);
+  return sum / (4 * totalW);
+}
+
+// 0..100. Moats multiply risk down: a fully-moated task is safe even if codified.
+export function taskRisk(scores) {
+  return Math.round(100 * accelScore(scores) * (1 - moatScore(scores)));
+}
+
+export function classify(risk) {
+  if (risk >= 65) return 'delegate'; // AI does it; you review or stop doing it
+  if (risk >= 35) return 'convert'; // reposition: own/curate/front the task
+  return 'double-down'; // genuine moat work: pour freed hours here
+}
+
+export const CLASS_META = {
+  'delegate': { label: 'DELEGATE TO AI', color: '\x1b[31m', emoji: '🤖' },
+  'convert': { label: 'CONVERT', color: '\x1b[33m', emoji: '🔁' },
+  'double-down': { label: 'DOUBLE DOWN', color: '\x1b[32m', emoji: '🏰' },
+};
+
+// Hours-weighted survival score for a whole week: 100 = untouchable, 0 = fully exposed.
+export function survivalScore(tasks) {
+  const totalHours = tasks.reduce((a, t) => a + t.hours, 0);
+  if (!totalHours) return 0;
+  const weightedRisk =
+    tasks.reduce((a, t) => a + taskRisk(t.scores) * t.hours, 0) / totalHours;
+  return Math.round(100 - weightedRisk);
+}
+
+// Strongest moat dimension of a task — drives the conversion playbook.
+export function dominantMoat(scores) {
+  return MOATS.reduce((best, d) =>
+    (scores[d.key] ?? 0) * d.weight > (scores[best.key] ?? 0) * best.weight ? d : best
+  );
+}
+
+// Time is the missing axis of any automation-risk snapshot. A task that is
+// safe today is not safe forever: frontier capability creeps into harder
+// shapes, and every human moat decays at its own rate. This module projects
+// risk forward and finds your "career half-life" — the moment >50% of your
+// current week becomes automatable.
+//
+// The constants below are EXPLICIT, ARGUABLE ASSUMPTIONS (per year).
+// Disagree? Change them — that is the point of making them visible.
+
+
+// Frontier closes roughly half of a task's remaining "automation-shape gap"
+// every ~5 years: gap(t) = gap0 · e^(-CAPABILITY_CREEP·t).
+export const CAPABILITY_CREEP = 0.14;
+
+// Per-moat annual decay rates: how fast each defense erodes.
+export const MOAT_DECAY = {
+  accountability: 0.03, // regulation and liability move slowest of all
+  trust: 0.06, // AI personas slowly erode relationship premiums
+  embodied: 0.12, // robotics is the fastest-moving frontier
+  taste: 0.08, // models acquire taste; persistent personal brands hold longer
+  access: 0.05, // institutions guard their gates, but APIs creep in
+};
+
+export const HORIZON_YEARS = 15;
+
+export function taskRiskAt(scores, years) {
+  if (years <= 0) return taskRisk(scores);
+  const gap = 1 - accelScore(scores);
+  const accel = 1 - gap * Math.exp(-CAPABILITY_CREEP * years);
+  const totalW = MOATS.reduce((a, d) => a + d.weight, 0);
+  const moat =
+    MOATS.reduce(
+      (a, d) =>
+        a +
+        ((scores[d.key] ?? 0) / 4) * d.weight * Math.exp(-MOAT_DECAY[d.key] * years),
+      0
+    ) / totalW;
+  return Math.round(100 * accel * (1 - moat));
+}
+
+// Hours-weighted survival of the whole week at time t.
+export function survivalAt(tasks, years) {
+  const totalHours = tasks.reduce((a, t) => a + t.hours, 0);
+  if (!totalHours) return 0;
+  const risk =
+    tasks.reduce((a, t) => a + taskRiskAt(t.scores, years) * t.hours, 0) / totalHours;
+  return Math.round(100 - risk);
+}
+
+// Years until survival first drops below 50 (monthly resolution).
+// 0 = already there. null = outlives the 15-year projection horizon.
+export function survivalHalfLife(tasks) {
+  for (let m = 0; m <= HORIZON_YEARS * 12; m++) {
+    if (survivalAt(tasks, m / 12) < 50) return m / 12;
+  }
+  return null;
+}
+
+// Calendar date (YYYY-MM) of the half-life, or null if beyond horizon.
+export function halfLifeDate(tasks, from = new Date()) {
+  const yrs = survivalHalfLife(tasks);
+  if (yrs == null) return null;
+  const d = new Date(from.getTime());
+  d.setMonth(d.getMonth() + Math.round(yrs * 12));
+  return d.toISOString().slice(0, 7);
+}
+
+// Pure strategy content shared by the CLI and the web app: how to convert
+// an exposed task into a moated position, and the durable asset classes
+// that survive any model release.
+
+// What "convert" means depending on which moat is (or could be) strongest.
+export const CONVERSION_PLAYBOOK = {
+  accountability:
+    'Become the signer. Let AI produce the work; you own the outcome, carry the liability, and charge for the guarantee — not the labor.',
+  trust:
+    'Become the face. Clients should buy "you, amplified by AI" — keep every relationship touchpoint human, automate everything behind it.',
+  embodied:
+    'Anchor it in the physical. Pair the digital part (automate it) with on-site presence, hardware, or hands-on delivery that no API can ship.',
+  taste:
+    'Become the curator. Generate 20 options with AI, but be the person whose selection people pay for. Publish your taste so it becomes a brand.',
+  access:
+    'Become the gateway. Your privileged context, data, or seat at the table is the input AI cannot get — sell the access, automate the processing.',
+};
+
+export const ASSET_CLASSES = [
+  {
+    key: 'reputation',
+    label: 'Reputation',
+    question: 'Public track record people can verify (shipped work, reviews, talks)?',
+    hint: '0 = invisible, 4 = known name in your niche',
+    actions: [
+      'Publish one verifiable artifact per month under your own name',
+      'Attach your name to outcomes, not tasks ("I shipped X", not "I wrote code")',
+    ],
+  },
+  {
+    key: 'network',
+    label: 'Network',
+    question: 'People who would take your call and vouch for you?',
+    hint: '0 = none, 4 = 50+ who would refer you work',
+    actions: [
+      'One real conversation per week with someone outside your company',
+      'Make 2 introductions per month — referral debt compounds',
+    ],
+  },
+  {
+    key: 'audience',
+    label: 'Audience / distribution',
+    question: 'Direct channel to people who listen (list, followers, community)?',
+    hint: '0 = zero reach, 4 = you can reach thousands on demand',
+    actions: [
+      'Own the channel: email list or community you control, not rented feeds',
+      'Teach what you automate — operators of AI need guides they trust',
+    ],
+  },
+  {
+    key: 'credentials',
+    label: 'Licenses & credentials',
+    question: 'Legal permissions to sign, certify, or practice (PE, CPA, MD, bar...)?',
+    hint: '0 = none, 4 = licensed gatekeeper in a regulated field',
+    actions: [
+      'Acquire one signing authority in your domain — AI cannot hold a license',
+      'Position as the accountable reviewer of AI output in regulated work',
+    ],
+  },
+  {
+    key: 'context',
+    label: 'Proprietary context',
+    question: 'Knowledge that exists nowhere in writing (org history, client quirks, tacit craft)?',
+    hint: '0 = all your knowledge is googleable, 4 = years of untranscribed context',
+    actions: [
+      'Sit where context accumulates: client-facing, incident response, negotiations',
+      'Become the human index: the person who knows who/why, not just how',
+    ],
+  },
+  {
+    key: 'capital',
+    label: 'Capital & equity',
+    question: 'Ownership of things that earn without your labor (equity, products, property)?',
+    hint: '0 = pure wage income, 4 = assets could cover your living costs',
+    actions: [
+      'Convert labor income into ownership: equity over salary where possible',
+      'Own one small product/service operated BY AI, margin flows to you',
+    ],
+  },
+];
+
+// Pure sample data (a typical software engineer's week) shared by the CLI
+// demo command and the web app's "load sample week" button.
+
+const s = (codified, digital, verifiable, repetitive, accountability, trust, embodied, taste, access) =>
+  ({ codified, digital, verifiable, repetitive, accountability, trust, embodied, taste, access });
+
+export const DEMO_TASKS = [
+  { name: 'Writing CRUD features & glue code', hours: 14, scores: s(4, 4, 3, 3, 1, 0, 0, 1, 0) },
+  { name: 'Writing status reports & docs', hours: 4, scores: s(4, 4, 2, 4, 1, 1, 0, 1, 0) },
+  { name: 'Debugging production issues', hours: 5, scores: s(2, 4, 3, 2, 2, 1, 0, 1, 2) },
+  { name: 'Code review & production sign-off', hours: 6, scores: s(2, 4, 2, 2, 4, 2, 0, 2, 2) },
+  { name: 'Architecture decisions with trade-offs', hours: 5, scores: s(1, 3, 1, 1, 3, 2, 0, 4, 2) },
+  { name: 'Client meetings & requirement negotiation', hours: 6, scores: s(1, 2, 0, 1, 3, 4, 2, 3, 3) },
+  { name: 'Incident response & war-room calls', hours: 3, scores: s(1, 3, 2, 0, 4, 3, 1, 3, 4) },
+  { name: 'Mentoring juniors & hiring interviews', hours: 3, scores: s(1, 2, 0, 1, 2, 4, 2, 3, 2) },
+];
+
+export const DEMO_ASSETS = {
+  reputation: 2, network: 1, audience: 0, credentials: 1, context: 3, capital: 1,
+};
+
+// ---- rendering (browser, injected after the model) ----
+const COLORS = { 'delegate': 'var(--red)', 'convert': 'var(--yellow)', 'double-down': 'var(--green)' };
+const BUCKETS = [
+  ['delegate', '🤖 Delegate to AI', 'Stop doing these by hand — keep ~30% of the hours as the reviewer.'],
+  ['convert', '🔁 Convert your position', 'Same domain, new position: from doing the work to owning it.'],
+  ['double-down', '🏰 Double down', 'This is the 40%. Pour the freed hours here.'],
+];
+const escHtml = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+
+function halfLifeBanner(tasks) {
+  const hl = survivalHalfLife(tasks);
+  if (hl === 0) return '<div class="banner" style="border-left-color:var(--red)"><b>☠ Already past.</b> The majority of your week is automatable today. Reposition now, not later.</div>';
+  if (hl == null) return '<div class="banner" style="border-left-color:var(--green)"><b>🏰 Half-life beyond the 15-year horizon.</b> Your week outlives the projection. Rare.</div>';
+  return `<div class="banner"><b>☠ Career half-life: ~${halfLifeDate(tasks)}</b> (${hl.toFixed(1)} years)<br>
+  <span class="muted">the date when &gt;50% of your current week becomes automatable, if you change nothing</span></div>`;
+}
+
+function horizonSvg(tasks) {
+  const w = 680, h = 170, pad = 26;
+  const pts = [];
+  for (let y = 0; y <= 10; y += 0.5) {
+    const s = survivalAt(tasks, y);
+    pts.push([pad + (y / 10) * (w - 2 * pad), h - pad - (s / 100) * (h - 2 * pad)]);
+  }
+  const line = pts.map((p) => p.join(',')).join(' ');
+  const y50 = h - pad - 0.5 * (h - 2 * pad);
+  const hl = survivalHalfLife(tasks);
+  const marker = hl != null && hl <= 10
+    ? `<circle cx="${pad + (hl / 10) * (w - 2 * pad)}" cy="${y50}" r="5" fill="var(--red)"/>` : '';
+  return `<svg viewBox="0 0 ${w} ${h}" width="100%" role="img" aria-label="survival projection">
+    <line x1="${pad}" y1="${y50}" x2="${w - pad}" y2="${y50}" stroke="#374151" stroke-dasharray="5 5"/>
+    <text x="${w - pad}" y="${y50 - 6}" fill="#6b7280" font-size="11" text-anchor="end">50% — half-life threshold</text>
+    <polyline points="${line}" fill="none" stroke="var(--blue)" stroke-width="2.5"/>${marker}
+    <text x="${pad}" y="${h - 8}" fill="#6b7280" font-size="11">now</text>
+    <text x="${w / 2}" y="${h - 8}" fill="#6b7280" font-size="11" text-anchor="middle">+5y</text>
+    <text x="${w - pad}" y="${h - 8}" fill="#6b7280" font-size="11" text-anchor="end">+10y</text>
+  </svg>`;
+}
+
+function renderTaskList() {
+  const el = document.querySelector('#task-list');
+  el.innerHTML = state.tasks.map((t, i) => {
+    const risk = taskRisk(t.scores);
+    return `<div class="task-card"><span class="name">${escHtml(t.name)} <span class="muted">${t.hours}h/wk</span></span>
+      <span class="chip" style="color:${COLORS[classify(risk)]}">${risk}</span>
+      <button class="del" data-del="${i}" title="remove">✕</button></div>`;
+  }).join('') || '<p class="muted">No tasks yet — add your week above, or load the sample to see how this works.</p>';
+}
+
+function renderResults() {
+  const el = document.querySelector('#results');
+  if (!state.tasks.length) { el.innerHTML = ''; return; }
+  const s = survivalScore(state.tasks);
+  const gaugeColor = s >= 65 ? 'var(--green)' : s >= 35 ? 'var(--yellow)' : 'var(--red)';
+  const sorted = [...state.tasks].sort((a, b) => taskRisk(b.scores) - taskRisk(a.scores));
+
+  const bars = sorted.map((t) => {
+    const risk = taskRisk(t.scores);
+    return `<div class="bar-row"><span class="name">${escHtml(t.name)}</span>
+      <span class="track"><span class="fill" style="width:${risk}%;background:${COLORS[classify(risk)]}"></span></span>
+      <span class="val">${risk}</span></div>`;
+  }).join('');
+
+  const buckets = BUCKETS.map(([key, title, note]) => {
+    const items = sorted.filter((t) => classify(taskRisk(t.scores)) === key);
+    if (!items.length) return '';
+    const lis = items.map((t) => {
+      const extra = key === 'convert'
+        ? `<br><span class="play">${CONVERSION_PLAYBOOK[dominantMoat(t.scores).key]}</span>`
+        : key === 'delegate'
+          ? ` <span class="muted">(${t.hours}h/wk → keep ~${Math.round(t.hours * 3) / 10}h as reviewer)</span>` : '';
+      return `<li>${escHtml(t.name)}${extra}</li>`;
+    }).join('');
+    return `<div class="bucket"><h3 style="color:${COLORS[key]}">${title}</h3><p class="note">${note}</p><ul>${lis}</ul></div>`;
+  }).join('');
+
+  el.innerHTML = `<h2>2 · Verdict</h2>
+    <div class="gauge" style="color:${gaugeColor}">${s}<small>/100 survival</small></div>
+    <p class="muted">100 = your week is untouchable by the next model · 0 = fully automatable</p>
+    ${halfLifeBanner(state.tasks)}
+    <h3>Task risk (AI-replaceability, today)</h3>${bars}
+    <h3>Survival projection — capability creep + moat decay</h3>${horizonSvg(state.tasks)}
+    ${buckets}
+    <h3>Share your number</h3>
+    <textarea class="share" readonly>${escHtml(shareText())}</textarea>
+    <p><button data-action="copy-share" class="primary">copy</button></p>`;
+}
+
+function renderAssetAdvice() {
+  const el = document.querySelector('#assets-advice');
+  const ratings = state.assets?.ratings ?? {};
+  if (!Object.keys(ratings).length) { el.innerHTML = ''; return; }
+  const weakest = [...ASSET_CLASSES].sort((a, b) => (ratings[a.key] ?? 0) - (ratings[b.key] ?? 0)).slice(0, 2);
+  el.innerHTML = `<div class="bucket"><h3 style="color:var(--blue)">⚡ Weakest moats — compound here first</h3>
+    ${weakest.map((a) => `<p><b>${a.label}</b></p><ul>${a.actions.map((x) => `<li>${x}</li>`).join('')}</ul>`).join('')}</div>`;
+}
+
+function renderAll() { renderTaskList(); renderResults(); renderAssetAdvice(); }
+
+// ---- state + interactions (browser, injected after render) ----
+const LS_KEY = 'moat-web-v1';
+let state = loadState();
+
+function loadState() {
+  try {
+    const d = JSON.parse(localStorage.getItem(LS_KEY));
+    if (d && Array.isArray(d.tasks)) return { tasks: d.tasks, assets: d.assets ?? { ratings: {} } };
+  } catch { /* corrupt local data: start fresh */ }
+  return { tasks: [], assets: { ratings: {} } };
+}
+const persist = () => localStorage.setItem(LS_KEY, JSON.stringify(state));
+
+function dimRow(d, value, dataAttr) {
+  return `<label class="dim-row"><span class="q">${d.question}<small>${d.hint}</small></span>
+    <input type="range" min="0" max="4" step="1" value="${value}" ${dataAttr}><output>${value}</output></label>`;
+}
+
+function buildTaskForm() {
+  const rows = (dims) => dims.map((d) => dimRow(d, 2, `data-dim="${d.key}"`)).join('');
+  document.querySelector('#task-form').innerHTML = `
+    <div class="field-row">
+      <input type="text" id="t-name" placeholder="task name — e.g. weekly client reporting" maxlength="80">
+      <input type="number" id="t-hours" min="0.5" step="0.5" value="4" title="hours per week">
+    </div>
+    <div class="dim-group">how automatable is the shape of this task</div>${rows(ACCELERATORS)}
+    <div class="dim-group">how strong are the human moats around it</div>${rows(MOATS)}
+    <p style="margin:14px 0 2px"><button data-action="add-task" class="primary">+ add task</button></p>`;
+}
+
+function buildAssetSliders() {
+  const ratings = state.assets?.ratings ?? {};
+  document.querySelector('#assets-sliders').innerHTML = ASSET_CLASSES.map((a) =>
+    dimRow({ question: `${a.label} — ${a.question}`, hint: a.hint }, ratings[a.key] ?? 0, `data-asset="${a.key}"`)
+  ).join('');
+}
+
+function addTask() {
+  const name = document.querySelector('#t-name').value.trim();
+  if (!name) { document.querySelector('#t-name').focus(); return; }
+  const hours = Math.max(0.5, Number(document.querySelector('#t-hours').value) || 4);
+  const scores = {};
+  document.querySelectorAll('#task-form input[type=range]').forEach((r) => { scores[r.dataset.dim] = Number(r.value); });
+  state.tasks.push({ name, hours, scores });
+  persist();
+  buildTaskForm();
+  renderAll();
+  document.querySelector('#t-name').focus();
+}
+
+function shareText() {
+  const s = survivalScore(state.tasks);
+  const hl = survivalHalfLife(state.tasks);
+  const when = hl === 0 ? 'already past' : hl == null ? 'beyond 15 years' : `~${halfLifeDate(state.tasks)}`;
+  const sorted = [...state.tasks].sort((a, b) => taskRisk(b.scores) - taskRisk(a.scores));
+  const top = sorted[0], safe = sorted[sorted.length - 1];
+  return `🏰 My MOAT survival score: ${s}/100
+☠ Career half-life: ${when} — the date >50% of my week becomes automatable
+Most exposed: ${top.name} (${taskRisk(top.scores)}/100) · strongest moat: ${safe.name} (${taskRisk(safe.scores)}/100)
+Audited with MOAT — free, local, no signup. What's yours?`;
+}
+
+function exportJson() {
+  const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
+  const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: 'moat-data.json' });
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+function importJson(file) {
+  file.text().then((txt) => {
+    const d = JSON.parse(txt);
+    if (!Array.isArray(d.tasks)) throw new Error('bad shape');
+    state = { tasks: d.tasks, assets: d.assets ?? { ratings: {} } };
+    persist(); buildAssetSliders(); renderAll();
+  }).catch(() => alert('That file is not a valid MOAT export.'));
+}
+
+document.addEventListener('input', (e) => {
+  if (!e.target.matches('input[type=range]')) return;
+  e.target.parentElement.querySelector('output').textContent = e.target.value;
+  if (e.target.dataset.asset) {
+    state.assets.ratings[e.target.dataset.asset] = Number(e.target.value);
+    persist(); renderAssetAdvice();
+  }
+});
+
+document.addEventListener('click', (e) => {
+  const t = e.target;
+  if (t.dataset.del !== undefined) { state.tasks.splice(Number(t.dataset.del), 1); persist(); renderAll(); return; }
+  switch (t.dataset.action) {
+    case 'add-task': addTask(); break;
+    case 'sample':
+      state = { tasks: structuredClone(DEMO_TASKS), assets: { ratings: { ...DEMO_ASSETS } } };
+      persist(); buildAssetSliders(); renderAll(); break;
+    case 'export': exportJson(); break;
+    case 'import': document.querySelector('#import-file').click(); break;
+    case 'copy-share':
+      navigator.clipboard.writeText(shareText()).then(() => { t.textContent = 'copied ✓'; setTimeout(() => { t.textContent = 'copy'; }, 1500); });
+      break;
+    case 'reset':
+      if (confirm('Erase all locally stored MOAT data?')) {
+        state = { tasks: [], assets: { ratings: {} } };
+        persist(); buildAssetSliders(); renderAll();
+      }
+      break;
+  }
+});
+
+document.querySelector('#import-file').addEventListener('change', (e) => {
+  if (e.target.files[0]) importJson(e.target.files[0]);
+  e.target.value = '';
+});
+
+buildTaskForm();
+buildAssetSliders();
+renderAll();
+
+</script>
+</body>
+</html>

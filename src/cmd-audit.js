@@ -14,6 +14,8 @@ export async function runAudit() {
   console.log(bold('\n🏰 MOAT — weekly task audit\n'));
   console.log(dim('List the tasks that fill your working week. For each one you will'));
   console.log(dim('answer 9 quick questions (0-4). Empty task name = finish.\n'));
+  console.log(dim('calibration: most people overrate their trust & taste by 1-2 points.'));
+  console.log(dim('if nobody has ever paid extra specifically for YOURS, subtract one.\n'));
 
   const tasks = [];
   while (true) {

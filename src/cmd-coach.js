@@ -3,7 +3,8 @@
 // pipes it to the local `claude` CLI. Falls back to printing the prompt.
 import { spawn } from 'node:child_process';
 import { taskRisk, classify } from './scoring-model.js';
-import { ASSET_CLASSES } from './cmd-assets.js';
+import { survivalHalfLife, halfLifeDate } from './horizon-model.js';
+import { ASSET_CLASSES } from './strategy-playbook.js';
 import { load, latestAudit } from './storage.js';
 import { dim } from './prompts.js';
 
@@ -22,6 +23,11 @@ Their current week (from an automation-risk audit, risk 0-100):
 ${taskLines}
 
 Hours-weighted survival score: ${audit.survival}/100.
+Projected career half-life (date when >50% of their week becomes automatable under capability-creep assumptions): ${(() => {
+    const hl = survivalHalfLife(audit.tasks);
+    if (hl === 0) return 'ALREADY PAST — their week is majority-automatable today';
+    return hl == null ? 'beyond 15 years' : `${halfLifeDate(audit.tasks)} (~${hl.toFixed(1)} years away)`;
+  })()}.
 
 Their durable career assets (0-4):
 ${assetLines}

@@ -1,0 +1,52 @@
+:root {
+  --bg: #0b0f17; --card: #111827; --line: #1f2937; --text: #e5e7eb;
+  --muted: #6b7280; --red: #f87171; --yellow: #fbbf24; --green: #4ade80; --blue: #60a5fa;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--text); font: 15px/1.55 -apple-system, system-ui, sans-serif; margin: 0; }
+header, main, footer { max-width: 780px; margin: 0 auto; padding: 0 20px; }
+header { padding-top: 44px; }
+h1 { font-size: 30px; margin: 0 0 6px; }
+h2 { font-size: 16px; color: #9ca3af; text-transform: uppercase; letter-spacing: .07em; margin: 40px 0 10px; }
+h3 { font-size: 15px; margin: 22px 0 6px; }
+.tagline { font-size: 17px; margin: 0 0 6px; }
+.muted { color: var(--muted); font-size: 13px; }
+em { color: var(--text); font-style: normal; border-bottom: 1px dotted var(--muted); }
+code { background: var(--card); padding: 1px 5px; border-radius: 4px; font-size: 12.5px; }
+.toolbar { display: flex; gap: 8px; flex-wrap: wrap; margin: 14px 0 4px; }
+button { background: var(--card); color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 7px 14px; font-size: 13.5px; cursor: pointer; }
+button:hover { border-color: var(--muted); }
+button.primary { background: #1d4ed8; border-color: #1d4ed8; font-weight: 600; }
+button.danger { color: var(--red); }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 16px; margin: 12px 0; }
+.field-row { display: flex; gap: 10px; margin-bottom: 12px; }
+input[type=text], input[type=number] { background: var(--bg); color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; font-size: 14px; }
+input[type=text] { flex: 1; }
+input[type=number] { width: 90px; }
+.dim-group { color: var(--blue); font-size: 12px; text-transform: uppercase; letter-spacing: .08em; margin: 14px 0 4px; }
+.dim-row { display: grid; grid-template-columns: 1fr 140px 20px; gap: 12px; align-items: center; padding: 7px 0; border-top: 1px solid var(--line); }
+.dim-row .q { font-size: 13.5px; }
+.dim-row small { color: var(--muted); display: block; margin-top: 2px; }
+.dim-row output { text-align: right; font-variant-numeric: tabular-nums; }
+input[type=range] { width: 100%; accent-color: var(--blue); }
+.task-card { display: flex; align-items: center; gap: 12px; background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; margin: 8px 0; }
+.task-card .name { flex: 1; }
+.chip { font-weight: 700; font-variant-numeric: tabular-nums; min-width: 56px; text-align: right; }
+.del { background: none; border: none; color: var(--muted); font-size: 16px; cursor: pointer; padding: 2px 6px; }
+.del:hover { color: var(--red); }
+.gauge { font-size: 58px; font-weight: 800; line-height: 1.1; }
+.gauge small { font-size: 22px; color: var(--muted); font-weight: 600; }
+.banner { border: 1px solid var(--line); border-left: 4px solid var(--yellow); border-radius: 10px; padding: 12px 16px; margin: 16px 0; background: var(--card); }
+.banner b { font-size: 17px; }
+.bar-row { display: flex; align-items: center; gap: 12px; margin: 7px 0; }
+.bar-row .name { flex: 0 0 290px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 13.5px; }
+.track { flex: 1; height: 10px; background: var(--line); border-radius: 5px; overflow: hidden; }
+.fill { display: block; height: 100%; border-radius: 5px; }
+.val { flex: 0 0 34px; text-align: right; font-variant-numeric: tabular-nums; font-size: 13.5px; }
+.bucket { margin: 18px 0; }
+.bucket p.note { color: var(--muted); font-size: 13px; margin: 2px 0 8px; }
+.bucket li { margin: 4px 0; font-size: 14px; }
+.bucket .play { color: var(--blue); font-size: 13px; }
+.share { width: 100%; background: var(--bg); color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 10px; font: 13px/1.5 ui-monospace, monospace; min-height: 96px; }
+footer { padding: 36px 20px 60px; border-top: 1px solid var(--line); margin-top: 48px; }
+@media (max-width: 640px) { .bar-row .name { flex-basis: 150px; } .dim-row { grid-template-columns: 1fr 100px 18px; } }
