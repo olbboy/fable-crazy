@@ -1,0 +1,141 @@
+{
+  "audits": [
+    {
+      "date": "2026-06-12",
+      "tasks": [
+        {
+          "name": "Writing CRUD features & glue code",
+          "hours": 14,
+          "scores": {
+            "codified": 4,
+            "digital": 4,
+            "verifiable": 3,
+            "repetitive": 3,
+            "accountability": 1,
+            "trust": 0,
+            "embodied": 0,
+            "taste": 1,
+            "access": 0
+          }
+        },
+        {
+          "name": "Writing status reports & docs",
+          "hours": 4,
+          "scores": {
+            "codified": 4,
+            "digital": 4,
+            "verifiable": 2,
+            "repetitive": 4,
+            "accountability": 1,
+            "trust": 1,
+            "embodied": 0,
+            "taste": 1,
+            "access": 0
+          }
+        },
+        {
+          "name": "Debugging production issues",
+          "hours": 5,
+          "scores": {
+            "codified": 2,
+            "digital": 4,
+            "verifiable": 3,
+            "repetitive": 2,
+            "accountability": 2,
+            "trust": 1,
+            "embodied": 0,
+            "taste": 1,
+            "access": 2
+          }
+        },
+        {
+          "name": "Code review & production sign-off",
+          "hours": 6,
+          "scores": {
+            "codified": 2,
+            "digital": 4,
+            "verifiable": 2,
+            "repetitive": 2,
+            "accountability": 4,
+            "trust": 2,
+            "embodied": 0,
+            "taste": 2,
+            "access": 2
+          }
+        },
+        {
+          "name": "Architecture decisions with trade-offs",
+          "hours": 5,
+          "scores": {
+            "codified": 1,
+            "digital": 3,
+            "verifiable": 1,
+            "repetitive": 1,
+            "accountability": 3,
+            "trust": 2,
+            "embodied": 0,
+            "taste": 4,
+            "access": 2
+          }
+        },
+        {
+          "name": "Client meetings & requirement negotiation",
+          "hours": 6,
+          "scores": {
+            "codified": 1,
+            "digital": 2,
+            "verifiable": 0,
+            "repetitive": 1,
+            "accountability": 3,
+            "trust": 4,
+            "embodied": 2,
+            "taste": 3,
+            "access": 3
+          }
+        },
+        {
+          "name": "Incident response & war-room calls",
+          "hours": 3,
+          "scores": {
+            "codified": 1,
+            "digital": 3,
+            "verifiable": 2,
+            "repetitive": 0,
+            "accountability": 4,
+            "trust": 3,
+            "embodied": 1,
+            "taste": 3,
+            "access": 4
+          }
+        },
+        {
+          "name": "Mentoring juniors & hiring interviews",
+          "hours": 3,
+          "scores": {
+            "codified": 1,
+            "digital": 2,
+            "verifiable": 0,
+            "repetitive": 1,
+            "accountability": 2,
+            "trust": 4,
+            "embodied": 2,
+            "taste": 3,
+            "access": 2
+          }
+        }
+      ],
+      "survival": 57
+    }
+  ],
+  "assets": {
+    "date": "2026-06-12",
+    "ratings": {
+      "reputation": 2,
+      "network": 1,
+      "audience": 0,
+      "credentials": 1,
+      "context": 3,
+      "capital": 1
+    }
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "name": "moat",
+  "version": "0.1.0",
+  "description": "Anti-obsolescence engine: score your working week by AI-replaceability and reallocate toward work the next model cannot take",
+  "type": "module",
+  "bin": { "moat": "bin/moat.js" },
+  "scripts": {
+    "start": "node bin/moat.js"
+  },
+  "engines": { "node": ">=18" },
+  "license": "MIT"
+}
