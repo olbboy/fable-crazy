@@ -10,17 +10,21 @@ const read = (p) => readFileSync(join(ROOT, p), 'utf8');
 
 // Modules are concatenated into one <script type="module"> scope, so
 // cross-file imports are dropped; `export` declarations remain valid.
-const stripImports = (src) => src.replace(/^import .*$/gm, '');
+// Handles multi-line `import { a,\n b } from '...';` statements too.
+const stripImports = (src) => src.replace(/^import[\s\S]*?['"];\s*$/gm, '');
 
 export function buildWebApp() {
-  const model = ['src/scoring-model.js', 'src/horizon-model.js', 'src/strategy-playbook.js', 'src/demo-week-data.js']
-    .map((p) => stripImports(read(p)))
-    .join('\n');
+  const model = [
+    'src/scoring-model.js', 'src/horizon-model.js', 'src/strategy-playbook.js',
+    'src/demo-week-data.js', 'src/goal-math.js', 'src/venture-playbooks.js',
+    'src/venture-match.js', 'src/sprint-engine.js',
+  ].map((p) => stripImports(read(p))).join('\n');
 
   const html = read('src/web/web-app-template.html')
     .replace('/*{{STYLES}}*/', () => read('src/web/web-app-styles.css'))
     .replace('/*{{MODEL}}*/', () => model)
     .replace('/*{{RENDER}}*/', () => read('src/web/web-app-render.js'))
+    .replace('/*{{INCOME}}*/', () => read('src/web/web-app-income.js'))
     .replace('/*{{UI}}*/', () => read('src/web/web-app-ui.js'));
 
   const outDir = join(ROOT, 'dist');

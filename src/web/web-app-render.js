@@ -95,4 +95,4 @@ function renderAssetAdvice() {
     ${weakest.map((a) => `<p><b>${a.label}</b></p><ul>${a.actions.map((x) => `<li>${x}</li>`).join('')}</ul>`).join('')}</div>`;
 }
 
-function renderAll() { renderTaskList(); renderResults(); renderAssetAdvice(); }
+function renderAll() { renderTaskList(); renderResults(); renderIncome(); renderAssetAdvice(); }

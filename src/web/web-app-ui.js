@@ -5,9 +5,15 @@ let state = loadState();
 function loadState() {
   try {
     const d = JSON.parse(localStorage.getItem(LS_KEY));
-    if (d && Array.isArray(d.tasks)) return { tasks: d.tasks, assets: d.assets ?? { ratings: {} } };
+    if (d && Array.isArray(d.tasks)) {
+      return {
+        tasks: d.tasks, assets: d.assets ?? { ratings: {} },
+        goal: d.goal ?? null, venture: d.venture ?? null,
+        ledger: d.ledger ?? [], doneTasks: d.doneTasks ?? {},
+      };
+    }
   } catch { /* corrupt local data: start fresh */ }
-  return { tasks: [], assets: { ratings: {} } };
+  return { tasks: [], assets: { ratings: {} }, goal: null, venture: null, ledger: [], doneTasks: {} };
 }
 const persist = () => localStorage.setItem(LS_KEY, JSON.stringify(state));
 
@@ -71,7 +77,11 @@ function importJson(file) {
   file.text().then((txt) => {
     const d = JSON.parse(txt);
     if (!Array.isArray(d.tasks)) throw new Error('bad shape');
-    state = { tasks: d.tasks, assets: d.assets ?? { ratings: {} } };
+    state = {
+      tasks: d.tasks, assets: d.assets ?? { ratings: {} },
+      goal: d.goal ?? null, venture: d.venture ?? null,
+      ledger: d.ledger ?? [], doneTasks: d.doneTasks ?? {},
+    };
     persist(); buildAssetSliders(); renderAll();
   }).catch(() => alert('That file is not a valid MOAT export.'));
 }
@@ -85,22 +95,51 @@ document.addEventListener('input', (e) => {
   }
 });
 
+// Venture radio: sync price/niche/offer defaults without a disruptive re-render.
+document.addEventListener('change', (e) => {
+  if (e.target.matches('input[name=venture]')) {
+    const pb = PLAYBOOKS[e.target.value];
+    document.querySelector('#g-price').value = pb.price.default;
+    document.querySelector('#g-niche').placeholder = `who exactly do you serve? e.g. ${pb.nicheExample}`;
+    return;
+  }
+  if (e.target.dataset.done) {
+    state.doneTasks[e.target.dataset.done] = e.target.checked;
+    persist(); renderIncome();
+  }
+});
+
 document.addEventListener('click', (e) => {
   const t = e.target;
   if (t.dataset.del !== undefined) { state.tasks.splice(Number(t.dataset.del), 1); persist(); renderAll(); return; }
+  if (t.dataset.copyPrompt !== undefined) {
+    const prompt = lastSprint?.tasks[Number(t.dataset.copyPrompt)]?.aiPrompt ?? '';
+    navigator.clipboard.writeText(prompt).then(() => { t.textContent = 'copied ✓'; setTimeout(() => { t.textContent = 'copy'; }, 1500); });
+    return;
+  }
   switch (t.dataset.action) {
     case 'add-task': addTask(); break;
     case 'sample':
-      state = { tasks: structuredClone(DEMO_TASKS), assets: { ratings: { ...DEMO_ASSETS } } };
+      state = {
+        ...state, tasks: structuredClone(DEMO_TASKS), assets: { ratings: { ...DEMO_ASSETS } },
+      };
       persist(); buildAssetSliders(); renderAll(); break;
     case 'export': exportJson(); break;
     case 'import': document.querySelector('#import-file').click(); break;
     case 'copy-share':
       navigator.clipboard.writeText(shareText()).then(() => { t.textContent = 'copied ✓'; setTimeout(() => { t.textContent = 'copy'; }, 1500); });
       break;
+    case 'start-engine': startEngine(); break;
+    case 'log-revenue': logRevenue(); break;
+    case 'change-goal':
+      if (confirm('Reset goal, venture and revenue log? (Audit & assets are kept.)')) {
+        state.goal = null; state.venture = null; state.ledger = []; state.doneTasks = {};
+        persist(); renderIncome();
+      }
+      break;
     case 'reset':
       if (confirm('Erase all locally stored MOAT data?')) {
-        state = { tasks: [], assets: { ratings: {} } };
+        state = { tasks: [], assets: { ratings: {} }, goal: null, venture: null, ledger: [], doneTasks: {} };
         persist(); buildAssetSliders(); renderAll();
       }
       break;

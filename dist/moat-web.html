@@ -56,6 +56,21 @@ input[type=range] { width: 100%; accent-color: var(--blue); }
 .bucket li { margin: 4px 0; font-size: 14px; }
 .bucket .play { color: var(--blue); font-size: 13px; }
 .share { width: 100%; background: var(--bg); color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 10px; font: 13px/1.5 ui-monospace, monospace; min-height: 96px; }
+.inline { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--muted); }
+.venture-option { display: flex; gap: 10px; align-items: flex-start; border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; margin: 6px 0; cursor: pointer; }
+.venture-option:has(input:checked) { border-color: var(--blue); background: #0f1a2e; }
+.venture-option input { margin-top: 4px; }
+.venture-option small { color: var(--muted); }
+.fit { color: var(--blue); font-size: 12px; margin-left: 6px; }
+.task-sprint p { margin: 8px 0; font-size: 14px; }
+.task-sprint.done { opacity: .45; }
+.task-sprint.done .task-head b { text-decoration: line-through; }
+.task-head { display: flex; gap: 8px; align-items: baseline; cursor: pointer; }
+.prompt-box { background: var(--bg); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.prompt-label { display: flex; justify-content: space-between; align-items: center; padding: 5px 10px; font-size: 12px; color: var(--blue); border-bottom: 1px solid var(--line); }
+.copy-btn { padding: 2px 10px; font-size: 12px; }
+.prompt { margin: 0; padding: 10px; white-space: pre-wrap; font: 12.5px/1.5 ui-monospace, monospace; color: #9ca3af; max-height: 130px; overflow-y: auto; }
+.human-edge { color: var(--green); font-size: 13.5px; }
 footer { padding: 36px 20px 60px; border-top: 1px solid var(--line); margin-top: 48px; }
 @media (max-width: 640px) { .bar-row .name { flex-basis: 150px; } .dim-row { grid-template-columns: 1fr 100px 18px; } }
 
@@ -86,7 +101,11 @@ footer { padding: 36px 20px 60px; border-top: 1px solid var(--line); margin-top:
   </section>
   <section id="results"></section>
   <section>
-    <h2>3 · Moat assets — capital that survives any model release</h2>
+    <h2>3 · Income engine — from goal to this week's tasks</h2>
+    <div id="income"></div>
+  </section>
+  <section>
+    <h2>4 · Moat assets — capital that survives any model release</h2>
     <div id="assets-sliders" class="card"></div>
     <div id="assets-advice"></div>
   </section>
@@ -228,7 +247,6 @@ export function dominantMoat(scores) {
 //
 // The constants below are EXPLICIT, ARGUABLE ASSUMPTIONS (per year).
 // Disagree? Change them — that is the point of making them visible.
-
 
 // Frontier closes roughly half of a task's remaining "automation-shape gap"
 // every ~5 years: gap(t) = gap0 · e^(-CAPABILITY_CREEP·t).
@@ -389,6 +407,372 @@ export const DEMO_ASSETS = {
   reputation: 2, network: 1, audience: 0, credentials: 1, context: 3, capital: 1,
 };
 
+// Pure reverse-math for the income goal: from "X $/month growing g%/month"
+// down to units to sell and leads to touch. All testable, no I/O.
+
+// Target revenue for month N (1-based): base · (1+g)^(N-1)
+export function monthTarget(goal, monthIdx) {
+  return Math.round(goal.base * Math.pow(1 + goal.growth, monthIdx - 1));
+}
+
+export function ladder(goal, months = 12) {
+  return Array.from({ length: months }, (_, i) => ({ month: i + 1, target: monthTarget(goal, i + 1) }));
+}
+
+// 1-based month index of `now` relative to the goal start date.
+export function monthIndex(startDate, now = new Date()) {
+  const s = new Date(startDate);
+  return (now.getFullYear() - s.getFullYear()) * 12 + (now.getMonth() - s.getMonth()) + 1;
+}
+
+// Calendar key (YYYY-MM) of the Nth goal month.
+export function monthKey(startDate, monthIdx) {
+  const s = new Date(startDate);
+  return new Date(Date.UTC(s.getFullYear(), s.getMonth() + monthIdx - 1, 1)).toISOString().slice(0, 7);
+}
+
+// Week 1..4 within the current calendar month (week 4 absorbs days 22-31).
+export function weekOfMonth(now = new Date()) {
+  return Math.min(4, Math.ceil(now.getDate() / 7));
+}
+
+// New units to sell this month after retained recurring revenue.
+export function unitsForTarget(target, price, retained = 0) {
+  return Math.max(0, Math.ceil(target / price) - retained);
+}
+
+// Leads needed to close `units` through a two-step funnel.
+export function leadsForUnits(units, funnel) {
+  return Math.ceil(units / (funnel.leadToCall * funnel.callToClose));
+}
+
+// How many months behind the curve actual revenue is (negative = ahead).
+export function curveLag(goal, monthIdx, actual) {
+  if (actual <= 0) return monthIdx;
+  const effectiveMonth = Math.log(actual / goal.base) / Math.log(1 + goal.growth) + 1;
+  return Math.round((monthIdx - effectiveMonth) * 10) / 10 || 0; // normalize -0
+
+}
+
+// Sum ledger entries for a calendar month key.
+export function ledgerTotal(ledger = [], key) {
+  return ledger.filter((e) => e.month === key).reduce((a, e) => a + e.amount, 0);
+}
+
+// Five income-engine playbooks, each mapped to a different moat profile.
+// Funnel numbers are deliberately conservative cold-start estimates — the
+// sprint engine turns them into honest weekly quotas instead of hopium.
+// Template placeholders: {niche} {offer} {price} {q} {calls} {clients}
+
+export const PLAYBOOKS = {
+  'ai-service': {
+    key: 'ai-service',
+    label: 'AI-operated productized service',
+    pitch: 'Sell a recurring outcome. AI does ~80% of the labor; you own quality, trust and the guarantee.',
+    model: 'retainer', unitName: 'client', price: { default: 300 }, churn: 0.05,
+    funnel: { leadToCall: 0.12, callToClose: 0.3 },
+    moatFit: { trust: 2, network: 2, context: 2, accountability: 1 },
+    nicheExample: 'local e-commerce brands drowning in product content',
+    offerExample: 'Done-for-you weekly content engine — 20 posts + 4 emails, ${price}/mo, first week free',
+    build: [
+      { title: 'Define ONE guaranteed outcome', hours: 3,
+        detail: 'Pick a painful, recurring job for {niche}. Promise the outcome, not your hours. Write it as: "I deliver X every week or you don\'t pay."',
+        aiPrompt: 'My niche: {niche}. List their 10 most painful recurring tasks that an LLM pipeline could produce weekly. For each: pain level, willingness to pay, how I\'d prove the outcome in week 1. Then draft 3 one-line offers at ${price}/mo.',
+        humanEdge: 'Choose the one outcome YOU can personally guarantee — the guarantee is the product.' },
+      { title: 'Build the AI delivery pipeline end-to-end', hours: 6,
+        detail: 'Assemble the prompt chain / workflow that produces one full deliverable for a fictional client. Run it 3 times until output is consistently sellable.',
+        aiPrompt: 'Design an SOP + reusable prompt chain that turns a client intake form into this deliverable: {offer}. Include intake questions, per-step prompts, and a QA checklist I can run in 15 minutes.',
+        humanEdge: 'You define what "good" means — set the quality bar AI must clear, reject mediocre output.' },
+      { title: 'Payment link + one-page offer', hours: 2,
+        detail: 'Stripe/Polar/Lemon Squeezy payment link, one page: outcome, proof, price, guarantee, book-a-call button.',
+        aiPrompt: 'Write a one-page sales page for: {offer}, audience {niche}. PAS structure, one CTA (book 15-min call), 8th-grade reading level, no AI-sounding fluff.',
+        humanEdge: 'Put your real face and name on it — anonymity kills trust-based offers.' },
+      { title: 'Run 3 free pilots for proof', hours: 5,
+        detail: 'Deliver the full service to 3 people from your network for free for 2 weeks in exchange for a testimonial and a referral.',
+        aiPrompt: 'Draft a 4-message sequence asking warm contacts in {niche} to be free pilot clients: the ask, expectation setting, delivery note, testimonial+referral request.',
+        humanEdge: 'Pilots buy YOUR attention. Over-deliver personally — these 3 quotes fund the next 12 months.' },
+    ],
+    sell: { title: 'Touch {q} prospects in {niche}', hours: 5,
+      detail: 'Warm network first, then targeted cold. Goal this week: {q} personalized touches → ~{calls} discovery calls. Track every touch.',
+      aiPrompt: 'You are my outreach copywriter. Offer: {offer} (${price}/mo). Audience: {niche}. Here are 10 prospect names/contexts I\'ll paste. Draft a personalized first message for each: under 80 words, one specific observation about THEM, soft CTA to a 15-min call. No "I hope this finds you well".',
+      humanEdge: 'YOU hit send from your own account and answer every reply within an hour — speed of response is trust.' },
+    deliver: { title: 'Deliver for {clients} client(s) — QA everything', hours: 4,
+      detail: 'Run the pipeline per client, personally QA every artifact before it ships, send a 3-line weekly win report to each client.',
+      aiPrompt: 'Here is this week\'s pipeline output for a client (pasted below). Act as a ruthless editor for {niche}: flag anything generic, factually risky, or off-brand. Then draft their 3-line weekly report highlighting concrete wins.',
+      humanEdge: 'Your signature on quality + the relationship touch. Clients churn from silence, not from imperfection.' },
+    compound: { title: 'Compound: referrals + price ladder', hours: 2,
+      detail: 'Ask every happy client for 1 referral intro. After every 3rd client, raise the price 10% for new clients.',
+      aiPrompt: 'Draft a referral ask for a happy client of {offer}: short, specific ("one intro to a peer who struggles with X"), makes them look good. Plus a price-increase note for NEW prospects that frames it as demand.',
+      humanEdge: 'Referrals transfer trust — only you can be trusted. Make the ask in the moment of a delivered win.' },
+    kill: 'KILL CHECK: fewer than 3 paying conversations (calls with a real budget) by day 30 → your offer or niche is wrong. Re-run `moat goal` and reposition before spending month 2.',
+  },
+
+  'consulting-sprint': {
+    key: 'consulting-sprint',
+    label: 'Paid expert sprint / audit',
+    pitch: 'Package your judgment as a fixed-price, fixed-scope sprint. AI does research and drafts; you sell the verdict.',
+    model: 'oneoff', unitName: 'sprint', price: { default: 800 }, churn: 0,
+    funnel: { leadToCall: 0.12, callToClose: 0.35 },
+    moatFit: { trust: 3, context: 3, reputation: 2, credentials: 2, accountability: 2 },
+    nicheExample: 'seed-stage startups with a slow, flaky CI/CD pipeline',
+    offerExample: '5-day audit for {niche}: findings + prioritized fix plan + 1h walkthrough, ${price} fixed',
+    build: [
+      { title: 'Productize the sprint', hours: 3,
+        detail: 'Fixed scope, fixed price, fixed deliverable: "5-day audit → scored findings + roadmap + 1h call". Write the one-pager.',
+        aiPrompt: 'I\'m an expert in {niche}. Design a 5-day paid audit product at ${price}: day-by-day plan, deliverable outline, 3 risk-reversal options (guarantee, pay-after, half-upfront). Make the deliverable feel inevitable to buy.',
+        humanEdge: 'Scope around questions only your experience can answer — the audit sells your judgment, not a checklist.' },
+      { title: 'Build the AI research harness', hours: 4,
+        detail: 'Prompt kit that does 70% of the audit grunt work: data gathering, baseline comparisons, draft findings you then verify and overrule.',
+        aiPrompt: 'Build me an audit harness for {niche}: an intake questionnaire, 5 analysis prompts (one per audit day) that turn raw client artifacts into draft findings, and a findings-report template with severity scoring.',
+        humanEdge: 'AI drafts findings; YOU decide which 3 actually matter and stake your name on the priority order.' },
+      { title: 'Publish one proof artifact', hours: 4,
+        detail: 'Do a mini-audit of a public example in your niche and publish it (post/thread/video). It is your portfolio and your outreach hook.',
+        aiPrompt: 'Help me turn this mini-audit of a public {niche} example (notes pasted) into a sharp 600-word teardown post: concrete findings, numbers, one counterintuitive insight, ending with my sprint offer in one line.',
+        humanEdge: 'The opinions must be yours — spicy, defensible takes are what get shared and remembered.' },
+    ],
+    sell: { title: 'Pitch {q} prospects with the teardown', hours: 4,
+      detail: '{q} personalized messages leading with a free 1-paragraph observation about THEIR situation → ~{calls} scoping calls.',
+      aiPrompt: 'Offer: {offer}. For each prospect I paste, write a 3-sentence personalized observation about their situation (from their public info) + a 1-line pitch for the paid sprint. Confident, specific, zero flattery.',
+      humanEdge: 'On the call, diagnose live for 10 minutes free — demonstrating judgment in real time is the close.' },
+    deliver: { title: 'Run the sprint for {clients} buyer(s)', hours: 8,
+      detail: 'Execute day-by-day with the harness. Ship the report on time — punctuality is part of the product.',
+      aiPrompt: 'Here are the client artifacts and my harness outputs. Draft the findings report: executive summary, top-3 priorities with effort/impact, quick wins. I will rewrite every verdict — give me volume and structure.',
+      humanEdge: 'The 1h walkthrough call is where renewal/referral happens. Never delegate the verdict.' },
+    compound: { title: 'Compound: case study + raise price', hours: 2,
+      detail: 'Turn each finished sprint into an anonymized case study. Raise price ${price}→+15% after every 2 sprints.',
+      aiPrompt: 'Turn these sprint results into a 400-word anonymized case study: situation → 3 findings → outcome. End with one sentence selling the next sprint at the new price.',
+      humanEdge: 'Ask the client to co-sign the case study — borrowed credibility compounds.' },
+    kill: 'KILL CHECK: no paid sprint booked by day 45 despite 8+ scoping calls → price or positioning is off. Halve scope and price once; if still nothing in 3 weeks, switch venture.',
+  },
+
+  'curation-content': {
+    key: 'curation-content',
+    label: 'Niche curation engine (newsletter/feed)',
+    pitch: 'Your taste is the product: curate what matters in a niche, monetize attention via sponsors and affiliate.',
+    model: 'oneoff', unitName: 'sponsor/affiliate sale', price: { default: 150 }, churn: 0,
+    funnel: { leadToCall: 0.06, callToClose: 0.3 },
+    moatFit: { taste: 3, audience: 3, reputation: 2 },
+    nicheExample: 'AI tools that actually work for solo accountants',
+    offerExample: 'Weekly "{niche}" brief: 5 picks with verdicts, sponsor slot ${price}/issue',
+    build: [
+      { title: 'Define the editorial spine', hours: 2,
+        detail: 'One niche, one promise, one format: "every week, the 5 things in {niche} worth your time — with verdicts". Verdicts are the moat.',
+        aiPrompt: 'Niche: {niche}. Propose 5 newsletter concepts with sharp editorial angles, a naming shortlist, and a verdict-format (e.g. USE/SKIP/WATCH) that makes my taste visible and quotable.',
+        humanEdge: 'The verdicts must be yours. Curation without opinion is a commodity AI already does.' },
+      { title: 'Build the AI curation pipeline', hours: 4,
+        detail: 'AI sweeps sources and drafts summaries; you pick the 5 and write verdicts. Target: 90 min/issue total.',
+        aiPrompt: 'Build my weekly curation harness for {niche}: source list to monitor, a triage prompt that scores items 1-10 on relevance/novelty, and a summary template per item. I make the final picks.',
+        humanEdge: 'Cut from 30 candidates to 5 — the cuts ARE the product people subscribe for.' },
+      { title: 'Ship issues #1-2 + landing page', hours: 4,
+        detail: 'Substack/Beehiiv page, publish 2 issues before promoting anywhere. Archive is proof.',
+        aiPrompt: 'Write the landing page for: {offer}. One promise, 3 example verdicts, social-proof placeholder, subscribe CTA. Then help me edit issue #1 so every line earns its place.',
+        humanEdge: 'Your voice. Read it aloud — anything you wouldn\'t say to a friend, rewrite.' },
+    ],
+    sell: { title: 'Grow: {q} distribution touches', hours: 4,
+      detail: '{q} touches: share verdicts in niche communities, comment with substance, cross-post. Sponsors come from reach — month 1-2 is audience math, not revenue math.',
+      aiPrompt: 'From this week\'s issue, extract 5 standalone verdict-snippets sized for the communities where {niche} hangs out (I\'ll list them). Each snippet must deliver value alone and softly credit the newsletter.',
+      humanEdge: 'Engage as a person, not a marketer — reply to every comment; community trust is the growth loop.' },
+    deliver: null,
+    compound: { title: 'Compound: sell {units} sponsor slot(s)', hours: 3,
+      detail: 'Pitch niche vendors a ${price} slot with audience stats and a sample. Affiliate links on every relevant pick.',
+      aiPrompt: 'Draft a 120-word sponsor pitch for vendors serving {niche}: audience size, open rate, why this audience converts, one slot ${price}, scarcity (1 sponsor/issue). Plus a rate-card one-pager.',
+      humanEdge: 'Only accept sponsors you would genuinely verdict as USE — one bad sponsor burns years of taste equity.' },
+    kill: 'KILL CHECK: <100 subscribers or <35% open rate by day 60 → the niche or angle is wrong. Pick a sharper sub-niche and relaunch; the pipeline carries over.',
+  },
+
+  'micro-product': {
+    key: 'micro-product',
+    label: 'Micro-product (templates/toolkit)',
+    pitch: 'Package your craft into a $29-99 digital product. AI builds; distribution decides — brutal but scalable.',
+    model: 'oneoff', unitName: 'sale', price: { default: 49 }, churn: 0,
+    funnel: { leadToCall: 0.05, callToClose: 0.3 }, // visitor → email → buyer
+    moatFit: { taste: 2, audience: 2, reputation: 1, capital: 1 },
+    nicheExample: 'Notion ops system for freelance video editors',
+    offerExample: '{niche} toolkit: templates + SOPs + walkthrough video, ${price} once',
+    build: [
+      { title: 'Pick a product people already search for', hours: 3,
+        detail: 'Validate demand BEFORE building: search marketplaces (Gumroad/Etsy/template galleries) for proof of purchases in {niche}.',
+        aiPrompt: 'Niche: {niche}. List 10 digital product ideas with existing purchase-proof (similar products selling now). Score each: demand evidence, differentiation I can add, build effort. Recommend one.',
+        humanEdge: 'Pick where YOUR workflow is genuinely better — you\'re selling your craft, frozen.' },
+      { title: 'Build v1 with AI in one week', hours: 8,
+        detail: 'AI drafts every component; you polish to the standard you\'d use yourself. Record a 10-min walkthrough.',
+        aiPrompt: 'Build with me: {offer}. Generate the full component list, then draft each template/SOP one by one as I prompt you. Quality bar: I would use this in my own work today.',
+        humanEdge: 'The walkthrough video with your face/voice — it is the only part competitors can\'t copy in an afternoon.' },
+      { title: 'Listing + launch assets', hours: 3,
+        detail: 'Gumroad/Lemon Squeezy listing, 5 screenshots, launch post for each channel where {niche} lives.',
+        aiPrompt: 'Write the product listing for {offer} at ${price}: headline with the outcome, 5 bullet benefits, FAQ with objection-handling, and 3 launch posts tailored to different communities.',
+        humanEdge: 'Screenshots of REAL usage from your own work — staged screenshots smell.' },
+    ],
+    sell: { title: 'Drive {q} targeted visitors', hours: 5,
+      detail: 'Products need eyeballs: {q} visitors this week via value-posts, build-in-public updates, marketplace SEO. Free-value ratio 5:1 to pitches.',
+      aiPrompt: 'From my product {offer}, extract 5 genuinely useful standalone tips for {niche}. Format each for a different channel (forum answer, short post, comment). The product link is a P.S., never the point.',
+      humanEdge: 'Answer real questions in communities personally — accounts that only promote get ignored or banned.' },
+    deliver: null,
+    compound: { title: 'Compound: bundle, bump, next product', hours: 3,
+      detail: 'Add an order-bump (+$19 add-on), collect buyer emails, ship product #2 to the same audience next month.',
+      aiPrompt: 'My product {offer} has buyers. Propose: one order-bump add-on, one upsell, and the most-requested logical next product. Draft the 3-email post-purchase sequence that sells the next one.',
+      humanEdge: 'Read every piece of buyer feedback yourself — product #2 should be built from their words, not your guesses.' },
+    kill: 'KILL CHECK: <10 sales in the first 30 days after launch → distribution problem, not product problem. Either commit to audience-building (switch to curation venture) or pick a niche with marketplace traffic.',
+  },
+
+  'local-embodied': {
+    key: 'local-embodied',
+    label: 'AI setup service for local businesses',
+    pitch: 'Be the human who walks in the door: install AI workflows for local businesses that will never read docs.',
+    model: 'oneoff', unitName: 'setup', price: { default: 400 }, churn: 0,
+    funnel: { leadToCall: 0.2, callToClose: 0.35 }, // local + face-to-face converts hard
+    moatFit: { embodied: 3, trust: 2, access: 2, network: 1 },
+    nicheExample: 'dental clinics and beauty salons within 30 minutes of you',
+    offerExample: 'On-site AI setup for {niche}: booking/reply/review automation installed + staff trained, ${price} flat',
+    build: [
+      { title: 'Pick 2 installable workflows', hours: 3,
+        detail: 'Choose 2 high-pain, low-risk automations you can install in half a day: review responses, missed-call texts, booking reminders, FAQ autoreply.',
+        aiPrompt: 'For {niche}: list the 8 highest-pain workflows installable with off-the-shelf AI tools in <4 hours each. For each: tool stack, setup steps, monthly cost to the business, demo-able wow moment.',
+        humanEdge: 'Pick workflows you can demo live on their own phone in 5 minutes — seeing it on THEIR device closes.' },
+      { title: 'Build the demo kit + checklist', hours: 4,
+        detail: 'A 5-minute live demo on your phone/laptop + a laminated-style install checklist. Practice the demo 5 times.',
+        aiPrompt: 'Create my install-day kit for {offer}: pre-visit checklist, step-by-step install runbook, staff training script (15 min, non-technical), and a leave-behind one-pager.',
+        humanEdge: 'Rehearse until the demo never fumbles — in-person, fluency IS credibility.' },
+      { title: 'First 2 installs at half price', hours: 6,
+        detail: 'Walk into 2 businesses you already frequent. Half price in exchange for a Google review + window sticker/referral.',
+        aiPrompt: 'Draft my walk-in pitch script for {niche}: 30-second opener to the owner, the demo transition, objection handling (cost/complexity/“we tried AI”), and the half-price founding-client close.',
+        humanEdge: 'The walk-in itself. No model has feet. Smile, use their first name, buy something first.' },
+    ],
+    sell: { title: 'Visit/call {q} local businesses', hours: 6,
+      detail: '{q} doors/calls this week → ~{calls} sit-downs. Cluster by street to compound: every install makes the next-door pitch warmer.',
+      aiPrompt: 'Build me this week\'s route: I\'ll paste a list of local {niche} businesses. Rank by likely pain, draft a personalized opener referencing something visible about each (reviews, website gaps, busy hours).',
+      humanEdge: 'Show up in person. A human at the counter beats 1000 cold emails in local trust.' },
+    deliver: { title: 'Install day for {clients} business(es)', hours: 5,
+      detail: 'Run the runbook, train the staff, leave the one-pager, take a photo with the owner (with permission) for proof.',
+      aiPrompt: 'Customize the staff training script for this business (details pasted): their workflows, their tone with customers, the 3 things staff must do differently from tomorrow.',
+      humanEdge: 'Patience with non-technical staff is the product. They buy confidence, not configuration.' },
+    compound: { title: 'Compound: retainer + referral cluster', hours: 2,
+      detail: 'Offer every install a $99/mo "keep it running" retainer. Ask for intro to 2 neighboring businesses.',
+      aiPrompt: 'Draft the retainer pitch ($99/mo monitoring + monthly improvement) and the neighbor-referral ask, both in the voice of a trusted local fixer, not a SaaS company.',
+      humanEdge: 'Walk the referral over personally — "X next door said you should talk to me" is the highest-converting sentence in local sales.' },
+    kill: 'KILL CHECK: <2 paid installs after 40 doors/calls → the workflow or the vertical is wrong. Switch the workflow first (cheaper), the vertical second.',
+  },
+};
+
+// Rank the venture playbooks against YOUR moat profile — built from the
+// hours-weighted moat scores of your latest audit plus your asset inventory.
+
+
+// 0-4 value per dimension key (moats + asset classes). Neutral 2s when no data.
+// Pure on purpose (no storage import) so it runs in the browser bundle too.
+export function moatProfile(data) {
+  const profile = {};
+  const audit = data.audits?.at(-1) ?? null;
+  if (audit) {
+    const totalHours = audit.tasks.reduce((a, t) => a + t.hours, 0) || 1;
+    for (const d of MOATS) {
+      profile[d.key] =
+        audit.tasks.reduce((a, t) => a + (t.scores[d.key] ?? 0) * t.hours, 0) / totalHours;
+    }
+  }
+  for (const [k, v] of Object.entries(data.assets?.ratings ?? {})) profile[k] = v;
+  return { profile, personalized: !!(audit || data.assets) };
+}
+
+// Ventures sorted by fit (0-100) with a human-readable reason.
+export function rankVentures(data) {
+  const { profile, personalized } = moatProfile(data);
+  const ranked = Object.values(PLAYBOOKS).map((pb) => {
+    const dims = Object.entries(pb.moatFit);
+    const max = dims.reduce((a, [, w]) => a + w * 4, 0);
+    const score = dims.reduce((a, [k, w]) => a + w * (profile[k] ?? 2), 0);
+    const strongest = dims
+      .filter(([k]) => (profile[k] ?? 0) >= 2.5)
+      .sort((a, b) => b[1] * (profile[b[0]] ?? 0) - a[1] * (profile[a[0]] ?? 0))
+      .slice(0, 2)
+      .map(([k]) => k);
+    const reason = personalized
+      ? strongest.length
+        ? `matches your ${strongest.join(' + ')}`
+        : 'no strong moat match — viable but uphill'
+      : 'run `moat audit` + `moat assets` for a personalized match';
+    return { pb, fit: Math.round((100 * score) / max), reason };
+  });
+  return ranked.sort((a, b) => b.fit - a.fit);
+}
+
+// Turns (goal, venture, revenue ledger, today) into this week's atomic
+// task list: exact quotas, a ready-to-paste AI delegation prompt per task,
+// the human-only part, drift correction when behind, and kill criteria.
+
+
+export const fill = (tpl, ctx) =>
+  tpl.replace(/\{(\w+)\}/g, (m, k) => (ctx[k] !== undefined ? String(ctx[k]) : m));
+
+const instantiate = (t, ctx) => ({
+  title: fill(t.title, ctx),
+  detail: fill(t.detail, ctx),
+  hours: t.hours,
+  aiPrompt: fill(t.aiPrompt, ctx),
+  humanEdge: fill(t.humanEdge, ctx),
+});
+
+export function buildSprint(data, now = new Date()) {
+  const { goal, venture, ledger = [] } = data;
+  const pb = PLAYBOOKS[venture.key];
+  const month = Math.max(1, monthIndex(goal.startDate, now));
+  const week = weekOfMonth(now);
+  const target = monthTarget(goal, month);
+  const actual = ledgerTotal(ledger, monthKey(goal.startDate, month));
+  const prev = ledgerTotal(ledger, monthKey(goal.startDate, month - 1));
+
+  // Recurring revenue carried into this month, then the gap left to close.
+  const retained = pb.model === 'retainer' ? Math.floor((prev * (1 - pb.churn)) / venture.price) : 0;
+  const unitsNeeded = unitsForTarget(target, venture.price, retained);
+  const unitsSoFar = Math.floor(actual / venture.price);
+  const unitsLeft = Math.max(0, unitsNeeded - unitsSoFar);
+  const weeksLeft = Math.max(1, 5 - week);
+  const leadsThisWeek = Math.ceil(leadsForUnits(unitsLeft, pb.funnel) / weeksLeft);
+  const callsThisWeek = unitsLeft === 0 ? 0 : Math.max(1, Math.round(leadsThisWeek * pb.funnel.leadToCall));
+  // Month 1 gets a build-phase grace period before drift correction kicks in.
+  const graceWeek = month === 1 ? 3 : 2;
+  const behind = week >= graceWeek && actual < target * Math.min(1, week / 4) * 0.7;
+
+  const ctx = {
+    niche: venture.niche, offer: venture.offer, price: venture.price,
+    q: leadsThisWeek, calls: callsThisWeek,
+    clients: retained + unitsSoFar, units: unitsLeft, unitName: pb.unitName,
+  };
+
+  const tasks = [];
+  if (month === 1 && week <= 2) for (const t of pb.build) tasks.push(instantiate(t, ctx));
+  if (unitsLeft > 0 && !(month === 1 && week === 1)) tasks.push(instantiate(pb.sell, ctx));
+  if (unitsLeft === 0) {
+    tasks.push({
+      title: 'Month target already hit — bank the surplus', hours: 2,
+      detail: `You have ${unitsSoFar + retained} ${pb.unitName}(s) against a target of ${Math.ceil(target / venture.price)}. Use the slack to pre-fill next month's pipeline (lighter outreach) and improve delivery speed.`,
+      aiPrompt: fill('Audit my delivery pipeline for {offer}: where are the 3 biggest time sinks, and which step can be further automated before volume doubles next month?', ctx),
+      humanEdge: 'Rest is also a strategy — burnout is the one failure mode this tool cannot correct.',
+    });
+  }
+  if (ctx.clients > 0 && pb.deliver) tasks.push(instantiate(pb.deliver, ctx));
+  if (month >= 2 && pb.compound) tasks.push(instantiate(pb.compound, ctx));
+  if (behind) {
+    tasks.push({
+      title: `⚠ DRIFT CORRECTION — ${Math.max(0, target - actual)}$ gap with ${weeksLeft} week(s) left`, hours: 3,
+      detail: fill('You are off the curve. Add {q} EXTRA touches this week, warm network only (2-3× cold conversion), and offer a fast-action incentive (first week free / 48h delivery).', ctx),
+      aiPrompt: fill('I\'m behind on revenue for {offer}. Draft: (1) a warm-network reactivation message to past contacts, (2) a 1-week fast-action incentive that doesn\'t cheapen the ${price} price, (3) a follow-up to every prospect who went silent.', ctx),
+      humanEdge: 'Call — don\'t text — the 3 warmest prospects. Voice converts what text cannot.',
+    });
+  }
+  tasks.push({
+    title: 'Friday reality check (20 min)', hours: 0.5,
+    detail: `Log every dollar with \`moat log <amount>\`. Quota check: did you hit ${leadsThisWeek} touches / ${callsThisWeek} calls? Misses are data, not shame — they recalibrate next week's quotas.`,
+    aiPrompt: 'Here are my numbers this week (touches, calls, closes, revenue) vs quota. Diagnose the weakest funnel stage, give me ONE experiment to run next week, and tell me one thing to STOP doing.',
+    humanEdge: month <= 2 ? pb.kill : 'Compare against the curve with `moat curve` — the trend matters more than the week.',
+  });
+
+  return {
+    month, week, target, actual, retained, unitsNeeded, unitsLeft,
+    leadsThisWeek, callsThisWeek, behind, totalHours: tasks.reduce((a, t) => a + t.hours, 0), tasks,
+  };
+}
+
 // ---- rendering (browser, injected after the model) ----
 const COLORS = { 'delegate': 'var(--red)', 'convert': 'var(--yellow)', 'double-down': 'var(--green)' };
 const BUCKETS = [
@@ -486,7 +870,138 @@ function renderAssetAdvice() {
     ${weakest.map((a) => `<p><b>${a.label}</b></p><ul>${a.actions.map((x) => `<li>${x}</li>`).join('')}</ul>`).join('')}</div>`;
 }
 
-function renderAll() { renderTaskList(); renderResults(); renderAssetAdvice(); }
+function renderAll() { renderTaskList(); renderResults(); renderIncome(); renderAssetAdvice(); }
+
+// ---- income engine UI (browser, injected after render) ----
+// Goal setup → moat-matched venture picker → weekly sprint with copyable
+// AI prompts → revenue log → curve vs reality. All localStorage, no server.
+let lastSprint = null; // cache so copy-prompt buttons can look up prompt text
+
+// Adapt web state to the {audits, assets} shape the matcher expects.
+function matcherData() {
+  const hasAssets = Object.values(state.assets?.ratings ?? {}).some((v) => v > 0);
+  return {
+    audits: state.tasks.length ? [{ tasks: state.tasks }] : [],
+    assets: hasAssets ? state.assets : null,
+  };
+}
+
+function ventureOptionsHtml(selectedKey) {
+  return rankVentures(matcherData()).map((r, i) => `
+    <label class="venture-option">
+      <input type="radio" name="venture" value="${r.pb.key}" ${(selectedKey ? r.pb.key === selectedKey : i === 0) ? 'checked' : ''}>
+      <span><b>${r.pb.label}</b> <span class="fit">fit ${r.fit}%</span><br>
+      <small>${r.reason} · ${r.pb.pitch}</small></span>
+    </label>`).join('');
+}
+
+function goalSetupHtml() {
+  return `<div class="card">
+    <p class="muted">Honesty first: no tool can <em>guarantee</em> revenue. This one guarantees
+    <b>detection</b> — falsifiable weekly quotas, drift correction when you slip, and kill
+    criteria that force a pivot before you waste a quarter.</p>
+    <div class="field-row">
+      <label class="inline">$/month to start <input type="number" id="g-base" value="1000" min="50" step="50"></label>
+      <label class="inline">growth %/month <input type="number" id="g-growth" value="20" min="0" max="100"></label>
+    </div>
+    <div class="dim-group">income engines, ranked against your moat profile</div>
+    <div id="venture-options">${ventureOptionsHtml()}</div>
+    <div class="field-row" style="margin-top:12px">
+      <label class="inline">price per unit ($) <input type="number" id="g-price" value="${rankVentures(matcherData())[0].pb.price.default}" min="5"></label>
+    </div>
+    <input type="text" id="g-niche" placeholder="who exactly do you serve? e.g. ${rankVentures(matcherData())[0].pb.nicheExample}" style="width:100%;margin:6px 0">
+    <input type="text" id="g-offer" placeholder="your offer in one line (leave empty for a sensible default)" style="width:100%;margin:6px 0">
+    <p><button data-action="start-engine" class="primary">🚀 start the engine</button></p>
+  </div>`;
+}
+
+function curveHtml() {
+  const current = Math.max(1, monthIndex(state.goal.startDate));
+  const rows = [];
+  for (let m = 1; m <= Math.max(current, 6); m++) {
+    const target = monthTarget(state.goal, m);
+    const actual = ledgerTotal(state.ledger, monthKey(state.goal.startDate, m));
+    const pct = Math.min(100, Math.round((actual / target) * 100));
+    const future = m > current;
+    const color = actual >= target ? 'var(--green)' : pct >= 70 ? 'var(--yellow)' : 'var(--red)';
+    rows.push(`<div class="bar-row"><span class="name">${m === current ? '→ ' : ''}m${m} · target $${target}</span>
+      <span class="track">${future ? '' : `<span class="fill" style="width:${pct}%;background:${color}"></span>`}</span>
+      <span class="val">${future ? '—' : `$${actual}`}</span></div>`);
+  }
+  const actualNow = ledgerTotal(state.ledger, monthKey(state.goal.startDate, current));
+  const lag = curveLag(state.goal, current, actualNow);
+  const verdict = actualNow >= monthTarget(state.goal, current)
+    ? '<span style="color:var(--green)">✓ ON or AHEAD of the curve — raise prices before raising volume.</span>'
+    : actualNow <= 0
+      ? '<span style="color:var(--red)">✗ $0 booked this month — ship the first sale, nothing else matters.</span>'
+      : `<span style="color:var(--yellow)">⚠ running ~${lag} month(s) behind the curve — the quotas below already recalibrate around the gap.</span>`;
+  return `<h3>The curve vs reality</h3>${rows.join('')}<p>${verdict}</p>`;
+}
+
+function sprintHtml() {
+  lastSprint = buildSprint(state);
+  const s = lastSprint;
+  const doneKey = (i) => `${s.month}-${s.week}-${i}`;
+  const cards = s.tasks.map((t, i) => {
+    const done = state.doneTasks?.[doneKey(i)];
+    return `<div class="card task-sprint ${done ? 'done' : ''}">
+      <label class="task-head"><input type="checkbox" data-done="${doneKey(i)}" ${done ? 'checked' : ''}>
+        <b>${i + 1}. ${t.title}</b> <span class="muted">~${t.hours}h</span></label>
+      <p>${t.detail}</p>
+      <div class="prompt-box"><div class="prompt-label">🤖 paste to your AI
+        <button class="copy-btn" data-copy-prompt="${i}">copy</button></div>
+        <pre class="prompt">${t.aiPrompt.replace(/</g, '&lt;')}</pre></div>
+      <p class="human-edge">🧍 <b>only you:</b> ${t.humanEdge}</p>
+    </div>`;
+  }).join('');
+  return `<h3>This week's sprint — month ${s.month}, week ${s.week} <span class="muted">~${s.totalHours}h total</span></h3>
+    <p class="muted">to close: <b>${s.unitsLeft}</b> unit(s) → <b>${s.leadsThisWeek}</b> touches → ~${s.callsThisWeek} calls this week</p>
+    ${cards}`;
+}
+
+function renderIncome() {
+  const el = document.querySelector('#income');
+  if (!state.goal) { el.innerHTML = goalSetupHtml(); return; }
+  el.innerHTML = `<div class="card">
+      <b>${state.venture.offer}</b><br>
+      <span class="muted">$${state.venture.price}/unit · serving ${state.venture.niche} ·
+      goal $${state.goal.base}/mo +${Math.round(state.goal.growth * 100)}%/mo since ${state.goal.startDate}</span>
+      <p style="margin:10px 0 0"><button data-action="change-goal" class="danger">change goal (resets income data)</button></p>
+    </div>
+    ${curveHtml()}
+    <div class="card field-row">
+      <input type="number" id="log-amount" placeholder="revenue $" min="1" style="width:120px">
+      <input type="text" id="log-note" placeholder="note (e.g. first client)" style="flex:1">
+      <button data-action="log-revenue" class="primary">log it</button>
+    </div>
+    ${sprintHtml()}`;
+}
+
+function startEngine() {
+  const base = Math.max(50, Number(document.querySelector('#g-base').value) || 1000);
+  const growth = Math.max(0, Number(document.querySelector('#g-growth').value) || 20) / 100;
+  const key = document.querySelector('input[name=venture]:checked')?.value;
+  const pb = PLAYBOOKS[key];
+  if (!pb) return;
+  const price = Math.max(5, Number(document.querySelector('#g-price').value) || pb.price.default);
+  const niche = document.querySelector('#g-niche').value.trim() || pb.nicheExample;
+  const offer = document.querySelector('#g-offer').value.trim() || fill(pb.offerExample, { niche, price });
+  state.goal = { base, growth, startDate: new Date().toISOString().slice(0, 10) };
+  state.venture = { key, price, niche, offer };
+  state.ledger = state.ledger ?? [];
+  state.doneTasks = {};
+  persist(); renderIncome();
+  document.querySelector('#income').scrollIntoView({ behavior: 'smooth' });
+}
+
+function logRevenue() {
+  const amount = Number(document.querySelector('#log-amount').value);
+  if (!Number.isFinite(amount) || amount === 0) return;
+  const note = document.querySelector('#log-note').value.trim() || undefined;
+  const month = monthKey(state.goal.startDate, Math.max(1, monthIndex(state.goal.startDate)));
+  state.ledger.push({ month, amount, note });
+  persist(); renderIncome();
+}
 
 // ---- state + interactions (browser, injected after render) ----
 const LS_KEY = 'moat-web-v1';
@@ -495,9 +1010,15 @@ let state = loadState();
 function loadState() {
   try {
     const d = JSON.parse(localStorage.getItem(LS_KEY));
-    if (d && Array.isArray(d.tasks)) return { tasks: d.tasks, assets: d.assets ?? { ratings: {} } };
+    if (d && Array.isArray(d.tasks)) {
+      return {
+        tasks: d.tasks, assets: d.assets ?? { ratings: {} },
+        goal: d.goal ?? null, venture: d.venture ?? null,
+        ledger: d.ledger ?? [], doneTasks: d.doneTasks ?? {},
+      };
+    }
   } catch { /* corrupt local data: start fresh */ }
-  return { tasks: [], assets: { ratings: {} } };
+  return { tasks: [], assets: { ratings: {} }, goal: null, venture: null, ledger: [], doneTasks: {} };
 }
 const persist = () => localStorage.setItem(LS_KEY, JSON.stringify(state));
 
@@ -561,7 +1082,11 @@ function importJson(file) {
   file.text().then((txt) => {
     const d = JSON.parse(txt);
     if (!Array.isArray(d.tasks)) throw new Error('bad shape');
-    state = { tasks: d.tasks, assets: d.assets ?? { ratings: {} } };
+    state = {
+      tasks: d.tasks, assets: d.assets ?? { ratings: {} },
+      goal: d.goal ?? null, venture: d.venture ?? null,
+      ledger: d.ledger ?? [], doneTasks: d.doneTasks ?? {},
+    };
     persist(); buildAssetSliders(); renderAll();
   }).catch(() => alert('That file is not a valid MOAT export.'));
 }
@@ -575,22 +1100,51 @@ document.addEventListener('input', (e) => {
   }
 });
 
+// Venture radio: sync price/niche/offer defaults without a disruptive re-render.
+document.addEventListener('change', (e) => {
+  if (e.target.matches('input[name=venture]')) {
+    const pb = PLAYBOOKS[e.target.value];
+    document.querySelector('#g-price').value = pb.price.default;
+    document.querySelector('#g-niche').placeholder = `who exactly do you serve? e.g. ${pb.nicheExample}`;
+    return;
+  }
+  if (e.target.dataset.done) {
+    state.doneTasks[e.target.dataset.done] = e.target.checked;
+    persist(); renderIncome();
+  }
+});
+
 document.addEventListener('click', (e) => {
   const t = e.target;
   if (t.dataset.del !== undefined) { state.tasks.splice(Number(t.dataset.del), 1); persist(); renderAll(); return; }
+  if (t.dataset.copyPrompt !== undefined) {
+    const prompt = lastSprint?.tasks[Number(t.dataset.copyPrompt)]?.aiPrompt ?? '';
+    navigator.clipboard.writeText(prompt).then(() => { t.textContent = 'copied ✓'; setTimeout(() => { t.textContent = 'copy'; }, 1500); });
+    return;
+  }
   switch (t.dataset.action) {
     case 'add-task': addTask(); break;
     case 'sample':
-      state = { tasks: structuredClone(DEMO_TASKS), assets: { ratings: { ...DEMO_ASSETS } } };
+      state = {
+        ...state, tasks: structuredClone(DEMO_TASKS), assets: { ratings: { ...DEMO_ASSETS } },
+      };
       persist(); buildAssetSliders(); renderAll(); break;
     case 'export': exportJson(); break;
     case 'import': document.querySelector('#import-file').click(); break;
     case 'copy-share':
       navigator.clipboard.writeText(shareText()).then(() => { t.textContent = 'copied ✓'; setTimeout(() => { t.textContent = 'copy'; }, 1500); });
       break;
+    case 'start-engine': startEngine(); break;
+    case 'log-revenue': logRevenue(); break;
+    case 'change-goal':
+      if (confirm('Reset goal, venture and revenue log? (Audit & assets are kept.)')) {
+        state.goal = null; state.venture = null; state.ledger = []; state.doneTasks = {};
+        persist(); renderIncome();
+      }
+      break;
     case 'reset':
       if (confirm('Erase all locally stored MOAT data?')) {
-        state = { tasks: [], assets: { ratings: {} } };
+        state = { tasks: [], assets: { ratings: {} }, goal: null, venture: null, ledger: [], doneTasks: {} };
         persist(); buildAssetSliders(); renderAll();
       }
       break;

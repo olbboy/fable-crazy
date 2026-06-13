@@ -1,7 +1,7 @@
 {
   "name": "moat",
-  "version": "0.2.0",
-  "description": "Anti-obsolescence engine: score your working week by AI-replaceability, find your career half-life, and reallocate toward work the next model cannot take",
+  "version": "0.4.0",
+  "description": "Anti-obsolescence engine: score your week by AI-replaceability, find your career half-life, then run the income engine — goal-reversed weekly tasks with AI delegation prompts, drift correction and kill criteria",
   "type": "module",
   "bin": { "moat": "bin/moat.js" },
   "scripts": {

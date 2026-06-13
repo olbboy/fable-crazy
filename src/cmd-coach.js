@@ -17,6 +17,12 @@ function buildPrompt(data) {
     ? ASSET_CLASSES.map((a) => `- ${a.label}: ${data.assets.ratings[a.key] ?? 0}/4`).join('\n')
     : '(no asset inventory yet)';
 
+  const goalLines = data.goal
+    ? `\nTheir income goal: $${data.goal.base}/month growing ${Math.round(data.goal.growth * 100)}%/month, started ${data.goal.startDate}.
+Their venture: "${data.venture?.offer ?? '?'}" at $${data.venture?.price ?? '?'} serving ${data.venture?.niche ?? '?'}.
+Revenue logged so far: ${(data.ledger ?? []).map((e) => `${e.month}: $${e.amount}`).join(', ') || 'none yet'}.`
+    : '';
+
   return `You are a brutally honest career strategist preparing a knowledge worker for a world where frontier AI models can do most cognitive work. No platitudes, no "AI won't replace you, people using AI will" clichés.
 
 Their current week (from an automation-risk audit, risk 0-100):
@@ -31,6 +37,7 @@ Projected career half-life (date when >50% of their week becomes automatable und
 
 Their durable career assets (0-4):
 ${assetLines}
+${goalLines}
 
 Give them:
 1. The single most dangerous pattern you see in this data.

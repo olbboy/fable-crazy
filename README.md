@@ -79,13 +79,45 @@ or just send the file to someone whose job you worry about.
 - **`moat coach`** — the crazy bit: uses the very AI that threatens your job as
   your survival strategist, fed with your real audit data and half-life date.
 
+## 💰 Income engine — from "$1000/mo +20%" to this week's tasks
+
+**Fully available in the web app UI** (section 3 — no command line needed):
+set the goal, pick a moat-matched venture, get this week's sprint with per-task
+copy buttons for the AI prompts, check tasks off, log revenue, watch the curve.
+Equivalent CLI for terminal people:
+
+```bash
+node bin/moat.js goal     # set target + growth, pick the venture that fits YOUR moats
+node bin/moat.js sprint   # this week's atomic tasks: quotas, AI prompts, human-only parts
+node bin/moat.js log 300  # record real revenue ("moat log 300 first client")
+node bin/moat.js curve    # target vs reality, drift lag, reforecast
+```
+
+How it works, honestly:
+
+1. **Reverse math.** $1000/mo growing 20% means month 12 = $7,430/mo. The engine
+   converts each month's target into units to sell, then leads to touch, through
+   deliberately conservative funnel numbers — so quotas are honest, not hopium.
+2. **Moat-matched ventures.** Five playbooks (AI-operated service, expert sprint,
+   curation engine, micro-product, local AI setup) ranked against the moat profile
+   from your own audit — the venture you pick is the one your defenses support.
+3. **Atomic tasks with AI leverage.** Every weekly task ships three parts: what to
+   do, a **copy-paste delegation prompt** so AI does ~70% of it, and the human-only
+   part (hit send yourself, make the verdict, walk in the door).
+4. **A control loop, not a promise.** No tool can *guarantee* revenue — anyone who
+   says otherwise is selling you something. MOAT guarantees **detection**: log real
+   dollars, and when you drift below pace it injects gap-closing tasks; miss the
+   **kill criteria** (e.g. "<3 paying conversations by day 30") and it tells you to
+   pivot before you waste a quarter.
+
 ## Accuracy & honesty
 
 - Every 0–4 question ships with **calibration anchors** (concrete examples for
   0 and 4) because everyone overrates their own taste and trust.
-- The scoring engine and horizon model are covered by tests: `npm test`
-  (18 assertions on formula edges, classification thresholds, monotonic decay,
-  half-life math, and the web build).
+- The scoring engine, horizon model, goal math, venture matching and sprint
+  engine are covered by tests: `npm test` (38 assertions on formula edges,
+  classification thresholds, monotonic decay, half-life math, funnel math,
+  retention, drift correction, and the web build).
 - The horizon constants are forecasts, not facts. They are deliberately exposed
   as code, not buried in weights — disagreement is a feature.
 

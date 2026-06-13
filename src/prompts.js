@@ -65,6 +65,18 @@ export async function askScale(question, hint, def = 2) {
   }
 }
 
+// Numbered pick from a list; Enter selects the first option. Returns index.
+export async function askChoice(question, options) {
+  options.forEach((o, i) => console.log(`  ${i + 1}. ${o.label}${o.note ? dim(` — ${o.note}`) : ''}`));
+  while (true) {
+    const raw = await ask(`${question} [1-${options.length}, enter=1]: `);
+    if (raw === '') return 0;
+    const n = Number(raw);
+    if (Number.isInteger(n) && n >= 1 && n <= options.length) return n - 1;
+    console.log('pick a number from the list');
+  }
+}
+
 export async function askNumber(question, def) {
   while (true) {
     const raw = await ask(`${question} [enter=${def}]: `);
